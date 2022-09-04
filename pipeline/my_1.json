@@ -56,7 +56,10 @@
 				"outputs": [
 					{
 						"referenceName": "ds_emp_out",
-						"type": "DatasetReference"
+						"type": "DatasetReference",
+						"parameters": {
+							"fileName": "emp.csv"
+						}
 					}
 				]
 			}
