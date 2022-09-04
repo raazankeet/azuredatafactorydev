@@ -76,6 +76,7 @@
 				"SortBySalary sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     partitionFileNames:['emp_dept_innerjoined.csv'],",
+				"     truncate: true,",
 				"     umask: 0022,",
 				"     preCommands: [],",
 				"     postCommands: [],",
