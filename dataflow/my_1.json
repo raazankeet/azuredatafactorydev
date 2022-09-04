@@ -75,11 +75,13 @@
 				"select1 sort(desc(salary, true)) ~> SortBySalary",
 				"SortBySalary sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
+				"     partitionFileNames:['emp_dept_innerjoined.csv'],",
 				"     umask: 0022,",
 				"     preCommands: [],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> TargetByJoined"
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> TargetByJoined"
 			]
 		}
 	}
