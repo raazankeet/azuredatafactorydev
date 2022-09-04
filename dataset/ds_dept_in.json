@@ -2,7 +2,7 @@
 	"name": "ds_dept_in",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "Lnkd_ankitadlsadf_onprem",
+			"referenceName": "Lnkd_ankitadlsadf",
 			"type": "LinkedServiceReference"
 		},
 		"annotations": [],
