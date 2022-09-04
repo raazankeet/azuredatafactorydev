@@ -1,0 +1,9 @@
+{
+	"name": "ankitraj-adf-dev",
+	"location": "centralindia",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "3976e422-b43e-4998-a7b5-65ec3eed32be",
+		"tenantId": "e640b7b9-f5f7-4c9b-bd28-4d3b4f0bae1c"
+	}
+}
