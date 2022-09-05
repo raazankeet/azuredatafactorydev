@@ -33,8 +33,7 @@
 						"type": "SqlServerSink",
 						"preCopyScript": "truncate table dbo.Student_SRC_NEW;",
 						"writeBehavior": "insert",
-						"sqlWriterUseTableLock": false,
-						"tableOption": "autoCreate"
+						"sqlWriterUseTableLock": false
 					},
 					"enableStaging": false,
 					"translator": {
