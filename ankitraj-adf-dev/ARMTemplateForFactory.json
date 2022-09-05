@@ -624,7 +624,7 @@
 								"type": "DatasetReference",
 								"parameters": {
 									"table_name": {
-										"value": "@variables('src_table_name')",
+										"value": "@pipeline().parameters.src_table_name",
 										"type": "Expression"
 									}
 								}
@@ -636,7 +636,7 @@
 								"type": "DatasetReference",
 								"parameters": {
 									"table_name": {
-										"value": "@variables('tgt_table_name')",
+										"value": "@pipeline().parameters.tgt_table_name",
 										"type": "Expression"
 									}
 								}
@@ -664,7 +664,7 @@
 								{
 									"type": "Query",
 									"text": {
-										"value": "@truncate table dbo.variables('tgt_table_name');",
+										"value": "@{concat('Truncate table ',pipeline().parameters.src_table_name)}",
 										"type": "Expression"
 									}
 								}
@@ -676,12 +676,12 @@
 					"elapsedTimeMetric": {},
 					"cancelAfter": {}
 				},
-				"variables": {
+				"parameters": {
 					"src_table_name": {
-						"type": "String"
+						"type": "string"
 					},
 					"tgt_table_name": {
-						"type": "String"
+						"type": "string"
 					}
 				},
 				"annotations": []
