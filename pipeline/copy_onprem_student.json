@@ -7,7 +7,7 @@
 				"type": "Copy",
 				"dependsOn": [
 					{
-						"activity": "Delete Target Table",
+						"activity": "Truncate Target Table",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -132,7 +132,7 @@
 				]
 			},
 			{
-				"name": "Delete Target Table",
+				"name": "Truncate Target Table",
 				"type": "Lookup",
 				"dependsOn": [],
 				"policy": {
