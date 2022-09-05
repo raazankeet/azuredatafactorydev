@@ -31,7 +31,7 @@
 					},
 					"sink": {
 						"type": "SqlServerSink",
-						"preCopyScript": "truncate table Student_SRC_NEW;",
+						"preCopyScript": "truncate table dbo.Student_SRC_NEW;",
 						"writeBehavior": "insert",
 						"sqlWriterUseTableLock": false,
 						"tableOption": "autoCreate"
