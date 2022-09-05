@@ -5,7 +5,14 @@
 			{
 				"name": "Copy student",
 				"type": "Copy",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Delete Target Table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -123,6 +130,34 @@
 						}
 					}
 				]
+			},
+			{
+				"name": "Delete Target Table",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": "truncate table dbo.Student_SRC_NEW",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "onprem_in_student",
+						"type": "DatasetReference",
+						"parameters": {
+							"table_name": "Student_SRC_NEW"
+						}
+					}
+				}
 			}
 		],
 		"annotations": []
