@@ -1,0 +1,38 @@
+{
+	"name": "onprem_in_student",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "onprem_sqlserver",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "SqlServerTable",
+		"schema": [
+			{
+				"name": "SROLLNO",
+				"type": "decimal",
+				"precision": 20,
+				"scale": 0
+			},
+			{
+				"name": "AGE",
+				"type": "float",
+				"precision": 15
+			},
+			{
+				"name": "NAMES",
+				"type": "nvarchar"
+			},
+			{
+				"name": "EFEES",
+				"type": "decimal",
+				"precision": 10,
+				"scale": 2
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "Student_SRC"
+		}
+	}
+}
