@@ -663,7 +663,7 @@
 								{
 									"type": "Query",
 									"text": {
-										"value": "@truncate table pipeline().parameters.tgt_table_name",
+										"value": "@{concat('Truncate table ',pipeline().parameters.tgt_table_name}",
 										"type": "Expression"
 									}
 								}
