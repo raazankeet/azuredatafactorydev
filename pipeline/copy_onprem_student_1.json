@@ -158,7 +158,7 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "@truncate table dbo.variables('tgt_table_name');",
+								"value": "@truncate table variables('tgt_table_name')",
 								"type": "Expression"
 							}
 						}
