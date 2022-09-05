@@ -158,7 +158,7 @@
 						{
 							"type": "Query",
 							"text": {
-								"value": "@truncate table variables('tgt_table_name')",
+								"value": "@{concat('Truncate table ',variables('tgt_table_name'))}",
 								"type": "Expression"
 							}
 						}
