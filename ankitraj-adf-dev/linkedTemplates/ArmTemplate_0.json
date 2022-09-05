@@ -15,6 +15,10 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'accountKey' of 'Lnkd_ankitadlsadf_onprem'"
 		},
+		"onprem_sqlserver_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'onprem_sqlserver'"
+		},
 		"Lnkd_ankitadlsadf_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://ankitadlsadf.dfs.core.windows.net/"
@@ -55,6 +59,43 @@
 				"typeProperties": {}
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_dept_in')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "Lnkd_ankitadlsadf",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "dept.csv",
+						"fileSystem": "input"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "deptID",
+						"type": "String"
+					},
+					{
+						"name": "deptName",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/ds_emp_in')]",
@@ -106,66 +147,6 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/Lnkd_ankitadlsadf_onprem')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureBlobFS",
-				"typeProperties": {
-					"url": "[parameters('Lnkd_ankitadlsadf_onprem_properties_typeProperties_url')]",
-					"accountKey": {
-						"type": "SecureString",
-						"value": "[parameters('Lnkd_ankitadlsadf_onprem_accountKey')]"
-					}
-				},
-				"connectVia": {
-					"referenceName": "onpremruntime",
-					"type": "IntegrationRuntimeReference"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/integrationRuntimes/onpremruntime')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/ds_dept_in')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "Lnkd_ankitadlsadf",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "DelimitedText",
-				"typeProperties": {
-					"location": {
-						"type": "AzureBlobFSLocation",
-						"fileName": "dept.csv",
-						"fileSystem": "input"
-					},
-					"columnDelimiter": ",",
-					"escapeChar": "\\",
-					"firstRowAsHeader": true,
-					"quoteChar": "\""
-				},
-				"schema": [
-					{
-						"name": "deptID",
-						"type": "String"
-					},
-					{
-						"name": "deptName",
-						"type": "String"
-					}
-				]
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/ds_emp_out')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -199,6 +180,49 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Lnkd_ankitadlsadf_onprem')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('Lnkd_ankitadlsadf_onprem_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('Lnkd_ankitadlsadf_onprem_accountKey')]"
+					}
+				},
+				"connectVia": {
+					"referenceName": "onpremruntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/integrationRuntimes/onpremruntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/onprem_sqlserver')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "my on prem sql server",
+				"annotations": [],
+				"type": "SqlServer",
+				"typeProperties": {
+					"connectionString": "[parameters('onprem_sqlserver_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "onpremruntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/integrationRuntimes/onpremruntime')]"
 			]
 		},
 		{
@@ -378,6 +402,57 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/onprem_in_student')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "onprem_sqlserver",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"table_name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": [
+					{
+						"name": "SROLLNO",
+						"type": "decimal",
+						"precision": 20,
+						"scale": 0
+					},
+					{
+						"name": "AGE",
+						"type": "float",
+						"precision": 15
+					},
+					{
+						"name": "NAMES",
+						"type": "nvarchar"
+					},
+					{
+						"name": "EFEES",
+						"type": "decimal",
+						"precision": 10,
+						"scale": 2
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": {
+						"value": "@dataset().table_name",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/onprem_sqlserver')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/my_2_InnerJoin')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -425,6 +500,131 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/dataflows/my_1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/copy_onprem_student')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy student",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [
+							{
+								"name": "Source",
+								"value": "dbo.@{'Student_SRC'}"
+							},
+							{
+								"name": "Destination",
+								"value": "dbo.@{'Student_SRC_NEW'}"
+							}
+						],
+						"typeProperties": {
+							"source": {
+								"type": "SqlServerSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "SqlServerSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false,
+								"tableOption": "autoCreate"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "SROLLNO",
+											"type": "Decimal",
+											"physicalType": "decimal",
+											"scale": 0,
+											"precision": 20
+										},
+										"sink": {
+											"name": "SROLLNO"
+										}
+									},
+									{
+										"source": {
+											"name": "AGE",
+											"type": "Double",
+											"physicalType": "float"
+										},
+										"sink": {
+											"name": "AGE"
+										}
+									},
+									{
+										"source": {
+											"name": "NAMES",
+											"type": "String",
+											"physicalType": "nvarchar"
+										},
+										"sink": {
+											"name": "NAMES"
+										}
+									},
+									{
+										"source": {
+											"name": "EFEES",
+											"type": "Decimal",
+											"physicalType": "decimal",
+											"scale": 2,
+											"precision": 10
+										},
+										"sink": {
+											"name": "EFEES"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "onprem_in_student",
+								"type": "DatasetReference",
+								"parameters": {
+									"table_name": "Student_SRC"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "onprem_in_student",
+								"type": "DatasetReference",
+								"parameters": {
+									"table_name": "Student_SRC_NEW"
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/onprem_in_student')]"
 			]
 		}
 	]

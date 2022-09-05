@@ -11,6 +11,9 @@
 		"Lnkd_ankitadlsadf_onprem_accountKey": {
 			"value": ""
 		},
+		"onprem_sqlserver_connectionString": {
+			"value": ""
+		},
 		"Lnkd_ankitadlsadf_properties_typeProperties_url": {
 			"value": "https://ankitadlsadf.dfs.core.windows.net/"
 		},
