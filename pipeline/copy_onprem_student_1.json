@@ -7,7 +7,7 @@
 				"type": "Copy",
 				"dependsOn": [
 					{
-						"activity": "Truncate Target Table",
+						"activity": "Delete target table",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -117,7 +117,10 @@
 						"referenceName": "onprem_in_student",
 						"type": "DatasetReference",
 						"parameters": {
-							"table_name": "Student_SRC"
+							"table_name": {
+								"value": "@variables('table_name')",
+								"type": "Expression"
+							}
 						}
 					}
 				],
@@ -132,8 +135,8 @@
 				]
 			},
 			{
-				"name": "Truncate Target Table",
-				"type": "Lookup",
+				"name": "Delete target table",
+				"type": "Script",
 				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
@@ -143,23 +146,28 @@
 					"secureInput": false
 				},
 				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "onprem_sqlserver",
+					"type": "LinkedServiceReference"
+				},
 				"typeProperties": {
-					"source": {
-						"type": "SqlServerSource",
-						"sqlReaderQuery": "truncate table dbo.Student_SRC_NEW",
-						"queryTimeout": "02:00:00",
-						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "onprem_in_student",
-						"type": "DatasetReference",
-						"parameters": {
-							"table_name": "Student_SRC_NEW"
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "@truncate table dbo.variables('table_name')",
+								"type": "Expression"
+							}
 						}
-					}
+					]
 				}
 			}
 		],
+		"variables": {
+			"table_name": {
+				"type": "String"
+			}
+		},
 		"annotations": []
 	}
 }
