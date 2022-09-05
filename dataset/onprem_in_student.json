@@ -5,6 +5,11 @@
 			"referenceName": "onprem_sqlserver",
 			"type": "LinkedServiceReference"
 		},
+		"parameters": {
+			"table_name": {
+				"type": "string"
+			}
+		},
 		"annotations": [],
 		"type": "SqlServerTable",
 		"schema": [
@@ -32,7 +37,10 @@
 		],
 		"typeProperties": {
 			"schema": "dbo",
-			"table": "Student_SRC"
+			"table": {
+				"value": "@dataset().table_name",
+				"type": "Expression"
+			}
 		}
 	}
 }
