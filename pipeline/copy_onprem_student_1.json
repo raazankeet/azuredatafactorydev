@@ -167,10 +167,12 @@
 		],
 		"parameters": {
 			"src_table_name": {
-				"type": "string"
+				"type": "string",
+				"defaultValue": "Student_SRC"
 			},
 			"tgt_table_name": {
-				"type": "string"
+				"type": "string",
+				"defaultValue": "Student_SRC_NEW"
 			}
 		},
 		"annotations": []
