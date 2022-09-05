@@ -36,6 +36,20 @@
 						"sqlWriterUseTableLock": false
 					},
 					"enableStaging": false,
+					"logSettings": {
+						"enableCopyActivityLog": true,
+						"copyActivityLogSettings": {
+							"logLevel": "Info",
+							"enableReliableLogging": false
+						},
+						"logLocationSettings": {
+							"linkedServiceName": {
+								"referenceName": "Lnkd_ankitadlsadf",
+								"type": "LinkedServiceReference"
+							},
+							"path": "output"
+						}
+					},
 					"translator": {
 						"type": "TabularTranslator",
 						"mappings": [
