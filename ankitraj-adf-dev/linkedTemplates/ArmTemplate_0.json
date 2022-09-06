@@ -306,6 +306,57 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/onprem_in_student')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "onprem_sqlserver",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"table_name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": [
+					{
+						"name": "SROLLNO",
+						"type": "decimal",
+						"precision": 20,
+						"scale": 0
+					},
+					{
+						"name": "AGE",
+						"type": "float",
+						"precision": 15
+					},
+					{
+						"name": "NAMES",
+						"type": "nvarchar"
+					},
+					{
+						"name": "EFEES",
+						"type": "decimal",
+						"precision": 10,
+						"scale": 2
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": {
+						"value": "@dataset().table_name",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/onprem_sqlserver')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/my_1')]",
 			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
@@ -402,104 +453,92 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/onprem_in_student')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
+			"name": "[concat(parameters('factoryName'), '/odd_even_write_to_file')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"linkedServiceName": {
-					"referenceName": "onprem_sqlserver",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"table_name": {
-						"type": "string"
-					}
-				},
-				"annotations": [],
-				"type": "SqlServerTable",
-				"schema": [
-					{
-						"name": "SROLLNO",
-						"type": "decimal",
-						"precision": 20,
-						"scale": 0
-					},
-					{
-						"name": "AGE",
-						"type": "float",
-						"precision": 15
-					},
-					{
-						"name": "NAMES",
-						"type": "nvarchar"
-					},
-					{
-						"name": "EFEES",
-						"type": "decimal",
-						"precision": 10,
-						"scale": 2
-					}
-				],
+				"type": "MappingDataFlow",
 				"typeProperties": {
-					"schema": "dbo",
-					"table": {
-						"value": "@dataset().table_name",
-						"type": "Expression"
-					}
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_emp_in",
+								"type": "DatasetReference"
+							},
+							"name": "source1"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ds_emp_out",
+								"type": "DatasetReference"
+							},
+							"name": "evenFile",
+							"rejectedDataLinkedService": {
+								"referenceName": "Lnkd_ankitadlsadf",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"dataset": {
+								"referenceName": "ds_emp_out",
+								"type": "DatasetReference"
+							},
+							"name": "oddFile"
+						}
+					],
+					"transformations": [
+						{
+							"name": "addRowCount"
+						},
+						{
+							"name": "split1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          empID as string,",
+						"          name as string,",
+						"          country as string,",
+						"          salary as string,",
+						"          department as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> source1",
+						"source1 keyGenerate(output(record_count as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> addRowCount",
+						"addRowCount split(record_count%2==0,",
+						"     disjoint: false) ~> split1@(evenFile, oddFile)",
+						"split1@evenFile sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['evenrecs.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     saveOrder: 1,",
+						"     partitionBy('hash', 1)) ~> evenFile",
+						"split1@oddFile sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['oddrecs.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     saveOrder: 2,",
+						"     partitionBy('hash', 1)) ~> oddFile"
+					]
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/onprem_sqlserver')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/my_2_InnerJoin')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "InnerJoin",
-						"type": "ExecuteDataFlow",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataflow": {
-								"referenceName": "my_1",
-								"type": "DataFlowReference",
-								"parameters": {},
-								"datasetParameters": {
-									"Employee": {},
-									"Department": {},
-									"TargetByJoined": {
-										"fileName": "empdeptinnerjoin.csv"
-									}
-								}
-							},
-							"staging": {},
-							"compute": {
-								"coreCount": 8,
-								"computeType": "General"
-							},
-							"traceLevel": "Fine"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/dataflows/my_1')]"
+				"[concat(variables('factoryId'), '/datasets/ds_emp_in')]",
+				"[concat(variables('factoryId'), '/datasets/ds_emp_out')]",
+				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
 			]
 		},
 		{
@@ -691,6 +730,108 @@
 				"[concat(variables('factoryId'), '/datasets/onprem_in_student')]",
 				"[concat(variables('factoryId'), '/linkedServices/onprem_sqlserver')]",
 				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/my_2_InnerJoin')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "InnerJoin",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "my_1",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"Employee": {},
+									"Department": {},
+									"TargetByJoined": {
+										"fileName": "empdeptinnerjoin.csv"
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/my_1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/odd_even')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "oddEven",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "odd_even_write_to_file",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"source1": {},
+									"evenFile": {
+										"fileName": "evenrecordsnumber.csv"
+									},
+									"oddFile": {
+										"fileName": "oddrecordsnumber.csv"
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 16,
+								"computeType": "General"
+							},
+							"traceLevel": "Coarse"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/odd_even_write_to_file')]"
 			]
 		}
 	]
