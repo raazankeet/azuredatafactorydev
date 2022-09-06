@@ -814,6 +814,13 @@
 						"     skipDuplicateMapInputs: true,",
 						"     skipDuplicateMapOutputs: true,",
 						"     saveOrder: 1,",
+						"     mapColumn(",
+						"          empID,",
+						"          name,",
+						"          country,",
+						"          salary,",
+						"          department",
+						"     ),",
 						"     partitionBy('hash', 1)) ~> evenFile",
 						"split1@oddFile sink(allowSchemaDrift: true,",
 						"     validateSchema: false,",
@@ -824,6 +831,13 @@
 						"     skipDuplicateMapInputs: true,",
 						"     skipDuplicateMapOutputs: true,",
 						"     saveOrder: 2,",
+						"     mapColumn(",
+						"          empID,",
+						"          name,",
+						"          country,",
+						"          salary,",
+						"          department",
+						"     ),",
 						"     partitionBy('hash', 1)) ~> oddFile"
 					]
 				}
