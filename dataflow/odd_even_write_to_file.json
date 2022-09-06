@@ -58,12 +58,12 @@
 				"     disjoint: false) ~> split1@(evenFile, oddFile)",
 				"split1@evenFile sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
-				"     partitionFileNames:[''],",
 				"     umask: 0022,",
 				"     preCommands: [],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 1,",
 				"     partitionBy('hash', 1)) ~> evenFile",
 				"split1@oddFile sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
@@ -71,7 +71,8 @@
 				"     preCommands: [],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> oddFile"
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 2) ~> oddFile"
 			]
 		}
 	}
