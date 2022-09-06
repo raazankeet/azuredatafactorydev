@@ -58,6 +58,7 @@
 				"     disjoint: false) ~> split1@(evenFile, oddFile)",
 				"split1@evenFile sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
+				"     partitionFileNames:['evenrecs.csv'],",
 				"     umask: 0022,",
 				"     preCommands: [],",
 				"     postCommands: [],",
@@ -67,12 +68,14 @@
 				"     partitionBy('hash', 1)) ~> evenFile",
 				"split1@oddFile sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
+				"     partitionFileNames:['oddrecs.csv'],",
 				"     umask: 0022,",
 				"     preCommands: [],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
-				"     saveOrder: 2) ~> oddFile"
+				"     saveOrder: 2,",
+				"     partitionBy('hash', 1)) ~> oddFile"
 			]
 		}
 	}
