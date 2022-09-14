@@ -1,0 +1,47 @@
+{
+	"name": "dummy_op_ds",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "Lnkd_ankitadlsadf",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileSystem": "output"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": [
+			{
+				"name": "empID",
+				"type": "String"
+			},
+			{
+				"name": "name",
+				"type": "String"
+			},
+			{
+				"name": "country",
+				"type": "String"
+			},
+			{
+				"name": "salary",
+				"type": "String"
+			},
+			{
+				"name": "deptID",
+				"type": "String"
+			},
+			{
+				"name": "deptName",
+				"type": "String"
+			}
+		]
+	}
+}
