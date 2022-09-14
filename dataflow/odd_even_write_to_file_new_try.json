@@ -75,7 +75,7 @@
 				"          country,",
 				"          salary,",
 				"          department,",
-				"          this_derived_row = this_record",
+				"          sha_value",
 				"     ),",
 				"     partitionBy('hash', 1)) ~> evenFile",
 				"split1@oddFile sink(allowSchemaDrift: true,",
