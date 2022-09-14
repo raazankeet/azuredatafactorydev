@@ -44,9 +44,6 @@
 				}
 			],
 			"scriptLines": [
-				"parameters{",
-				"     this_record as integer (0)",
-				"}",
 				"source(output(",
 				"          empID as string,",
 				"          name as string,",
@@ -62,7 +59,8 @@
 				"     stepValue: 1L) ~> addRowCount",
 				"derivedColumn1 split(record_count%2==0,",
 				"     disjoint: false) ~> split1@(evenFile, oddFile)",
-				"addRowCount derive(this_record = $this_record+1) ~> derivedColumn1",
+				"addRowCount derive(new_rec = sha1(empID),",
+				"          local_temp := ERROR_FUNCTION('')) ~> derivedColumn1",
 				"split1@evenFile sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     partitionFileNames:['evenrecs.csv'],",
