@@ -15,21 +15,17 @@
 			"sinks": [
 				{
 					"dataset": {
-						"referenceName": "ds_emp_out",
+						"referenceName": "dummy_op_ds",
 						"type": "DatasetReference"
 					},
-					"name": "evenFile",
-					"rejectedDataLinkedService": {
-						"referenceName": "Lnkd_ankitadlsadf",
-						"type": "LinkedServiceReference"
-					}
+					"name": "sink1"
 				},
 				{
 					"dataset": {
-						"referenceName": "ds_emp_out",
+						"referenceName": "dummy_op_ds",
 						"type": "DatasetReference"
 					},
-					"name": "oddFile"
+					"name": "sink2"
 				}
 			],
 			"transformations": [
@@ -68,33 +64,28 @@
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
-				"     saveOrder: 1,",
 				"     mapColumn(",
 				"          empID,",
 				"          name,",
 				"          country,",
-				"          salary,",
-				"          department,",
-				"          new_column",
+				"          salary",
 				"     ),",
-				"     partitionBy('hash', 1)) ~> evenFile",
+				"     partitionBy('hash', 1)) ~> sink1",
 				"split1@oddFile sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
-				"     partitionFileNames:['oddrecs.csv'],",
 				"     umask: 0022,",
 				"     preCommands: [],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
-				"     saveOrder: 2,",
 				"     mapColumn(",
 				"          empID,",
 				"          name,",
 				"          country,",
 				"          salary,",
-				"          department",
-				"     ),",
-				"     partitionBy('hash', 1)) ~> oddFile"
+				"          deptID = department,",
+				"          new_column",
+				"     )) ~> sink2"
 			]
 		}
 	}

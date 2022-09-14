@@ -17,15 +17,7 @@
 				"typeProperties": {
 					"dataflow": {
 						"referenceName": "odd_even_write_to_file_new_coll",
-						"type": "DataFlowReference",
-						"datasetParameters": {
-							"evenFile": {
-								"fileName": "a.abc"
-							},
-							"oddFile": {
-								"fileName": "b.abc"
-							}
-						}
+						"type": "DataFlowReference"
 					},
 					"compute": {
 						"coreCount": 8,

@@ -17,31 +17,6 @@
 			"firstRowAsHeader": true,
 			"quoteChar": "\""
 		},
-		"schema": [
-			{
-				"name": "empID",
-				"type": "String"
-			},
-			{
-				"name": "name",
-				"type": "String"
-			},
-			{
-				"name": "country",
-				"type": "String"
-			},
-			{
-				"name": "salary",
-				"type": "String"
-			},
-			{
-				"name": "deptID",
-				"type": "String"
-			},
-			{
-				"name": "deptName",
-				"type": "String"
-			}
-		]
+		"schema": []
 	}
 }
