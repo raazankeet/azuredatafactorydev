@@ -508,7 +508,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "nameMasking",
+						"name": "namemasking",
 						"type": "ExecuteDataFlow",
 						"dependsOn": [],
 						"policy": {
@@ -523,12 +523,18 @@
 							"dataflow": {
 								"referenceName": "fname_mask_test",
 								"type": "DataFlowReference",
-								"parameters": {},
+								"parameters": {
+									"seed": {
+										"value": "@pipeline().parameters.pipeline_seed",
+										"type": "Expression"
+									}
+								},
 								"datasetParameters": {
 									"inputFile": {},
 									"firstNameLKP": {},
 									"maskedFile": {}
-								}
+								},
+								"linkedServiceParameters": {}
 							},
 							"staging": {},
 							"compute": {
@@ -545,8 +551,8 @@
 				},
 				"parameters": {
 					"pipeline_seed": {
-						"type": "int",
-						"defaultValue": 0
+						"type": "string",
+						"defaultValue": "0"
 					}
 				},
 				"annotations": []
@@ -944,7 +950,7 @@
 						"     broadcast: 'auto')~> getIndexBasedName",
 						"rowSelection sink(allowSchemaDrift: true,",
 						"     validateSchema: false,",
-						"     partitionFileNames:['maskedfile.csv'],",
+						"     partitionFileNames:[(concat(toString($seed), '.csv'))],",
 						"     umask: 0022,",
 						"     preCommands: [],",
 						"     postCommands: [],",
