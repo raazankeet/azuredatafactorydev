@@ -421,6 +421,100 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/fname_mask_test')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_emp_in",
+								"type": "DatasetReference"
+							},
+							"name": "inputFile"
+						},
+						{
+							"dataset": {
+								"referenceName": "first_name_lkp",
+								"type": "DatasetReference"
+							},
+							"name": "firstNameLKP"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "dummy_op_ds",
+								"type": "DatasetReference"
+							},
+							"name": "maskedFile"
+						}
+					],
+					"transformations": [
+						{
+							"name": "rowSelection"
+						},
+						{
+							"name": "nameMasking"
+						},
+						{
+							"name": "getIndexBasedName"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          empID as string,",
+						"          name as string,",
+						"          country as string,",
+						"          salary as string,",
+						"          department as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> inputFile",
+						"source(output(",
+						"          sno as integer,",
+						"          Fname as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> firstNameLKP",
+						"getIndexBasedName select(mapColumn(",
+						"          empID,",
+						"          name,",
+						"          maskedName = Fname,",
+						"          country,",
+						"          salary,",
+						"          department",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> rowSelection",
+						"inputFile derive(maskedIndex = mod(crc32(name),1000)) ~> nameMasking",
+						"nameMasking, firstNameLKP lookup(maskedIndex == sno,",
+						"     multiple: false,",
+						"     pickup: 'any',",
+						"     broadcast: 'auto')~> getIndexBasedName",
+						"rowSelection sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['maskedfile.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> maskedFile"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_emp_in')]",
+				"[concat(variables('factoryId'), '/datasets/first_name_lkp')]",
+				"[concat(variables('factoryId'), '/datasets/dummy_op_ds')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/lookup_test')]",
 			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
@@ -920,100 +1014,6 @@
 				"[concat(variables('factoryId'), '/datasets/ds_emp_in')]",
 				"[concat(variables('factoryId'), '/datasets/ds_emp_out')]",
 				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/mask_test')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"type": "MappingDataFlow",
-				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "ds_emp_in",
-								"type": "DatasetReference"
-							},
-							"name": "inputFile"
-						},
-						{
-							"dataset": {
-								"referenceName": "first_name_lkp",
-								"type": "DatasetReference"
-							},
-							"name": "firstNameLKP"
-						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "dummy_op_ds",
-								"type": "DatasetReference"
-							},
-							"name": "maskedFile"
-						}
-					],
-					"transformations": [
-						{
-							"name": "rowSelection"
-						},
-						{
-							"name": "nameMasking"
-						},
-						{
-							"name": "getIndexBasedName"
-						}
-					],
-					"scriptLines": [
-						"source(output(",
-						"          empID as string,",
-						"          name as string,",
-						"          country as string,",
-						"          salary as string,",
-						"          department as string",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> inputFile",
-						"source(output(",
-						"          sno as integer,",
-						"          Fname as string",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> firstNameLKP",
-						"getIndexBasedName select(mapColumn(",
-						"          empID,",
-						"          name,",
-						"          maskedName = Fname,",
-						"          country,",
-						"          salary,",
-						"          department",
-						"     ),",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> rowSelection",
-						"inputFile derive(maskedIndex = mod(crc32(name),1000)) ~> nameMasking",
-						"nameMasking, firstNameLKP lookup(maskedIndex == sno,",
-						"     multiple: false,",
-						"     pickup: 'any',",
-						"     broadcast: 'auto')~> getIndexBasedName",
-						"rowSelection sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     partitionFileNames:['maskedfile.csv'],",
-						"     umask: 0022,",
-						"     preCommands: [],",
-						"     postCommands: [],",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true,",
-						"     partitionBy('hash', 1)) ~> maskedFile"
-					]
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_emp_in')]",
-				"[concat(variables('factoryId'), '/datasets/first_name_lkp')]",
-				"[concat(variables('factoryId'), '/datasets/dummy_op_ds')]"
 			]
 		},
 		{
