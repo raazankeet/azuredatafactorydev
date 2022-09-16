@@ -20,9 +20,11 @@
 		},
 		"schema": [
 			{
+				"name": "sno",
 				"type": "String"
 			},
 			{
+				"name": "Fname",
 				"type": "String"
 			}
 		]
