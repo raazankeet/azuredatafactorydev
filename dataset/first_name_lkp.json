@@ -1,0 +1,29 @@
+{
+	"name": "first_name_lkp",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "Lnkd_ankitadlsadf",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "first_names.csv",
+				"fileSystem": "lookup-dictionaries"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"quoteChar": "\""
+		},
+		"schema": [
+			{
+				"type": "String"
+			},
+			{
+				"type": "String"
+			}
+		]
+	}
+}
