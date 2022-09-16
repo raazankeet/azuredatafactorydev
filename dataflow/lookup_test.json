@@ -43,7 +43,7 @@
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     ignoreNoFilesFound: false) ~> firstNameLKP",
-				"source1, firstNameLKP lookup(empID == ERROR_FUNCTION(''),",
+				"source1, firstNameLKP lookup(empID == sno,",
 				"     multiple: false,",
 				"     pickup: 'any',",
 				"     broadcast: 'auto')~> lookup1"
