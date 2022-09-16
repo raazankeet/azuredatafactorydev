@@ -31,6 +31,9 @@
 			"transformations": [
 				{
 					"name": "firstNameMasking"
+				},
+				{
+					"name": "rowSelection"
 				}
 			],
 			"scriptLines": [
@@ -55,7 +58,17 @@
 				"     multiple: false,",
 				"     pickup: 'any',",
 				"     broadcast: 'auto')~> firstNameMasking",
-				"firstNameMasking sink(allowSchemaDrift: true,",
+				"firstNameMasking select(mapColumn(",
+				"          empID,",
+				"          name,",
+				"          country,",
+				"          salary,",
+				"          department,",
+				"          Fname",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> rowSelection",
+				"rowSelection sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     partitionFileNames:['maskedfile.csv'],",
 				"     umask: 0022,",
