@@ -33,6 +33,11 @@
 				"defaultValue": 0
 			}
 		},
+		"variables": {
+			"s": {
+				"type": "String"
+			}
+		},
 		"annotations": []
 	}
 }
