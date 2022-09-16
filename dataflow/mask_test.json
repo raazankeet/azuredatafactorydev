@@ -30,13 +30,13 @@
 			],
 			"transformations": [
 				{
-					"name": "firstNameMasking"
-				},
-				{
 					"name": "rowSelection"
 				},
 				{
 					"name": "nameMasking"
+				},
+				{
+					"name": "getIndexBasedName"
 				}
 			],
 			"scriptLines": [
@@ -57,21 +57,21 @@
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     ignoreNoFilesFound: false) ~> firstNameLKP",
-				"nameMasking, firstNameLKP lookup(maskedIndex == sno,",
-				"     multiple: false,",
-				"     pickup: 'any',",
-				"     broadcast: 'auto')~> firstNameMasking",
-				"firstNameMasking select(mapColumn(",
+				"getIndexBasedName select(mapColumn(",
 				"          empID,",
 				"          name,",
+				"          maskedName = Fname,",
 				"          country,",
 				"          salary,",
-				"          department,",
-				"          Fname",
+				"          department",
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> rowSelection",
 				"inputFile derive(maskedIndex = mod(crc32(name),1000)) ~> nameMasking",
+				"nameMasking, firstNameLKP lookup(maskedIndex == sno,",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'auto')~> getIndexBasedName",
 				"rowSelection sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     partitionFileNames:['maskedfile.csv'],",
