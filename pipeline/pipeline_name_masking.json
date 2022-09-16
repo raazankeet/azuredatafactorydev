@@ -29,7 +29,8 @@
 		],
 		"parameters": {
 			"pipeline_seed": {
-				"type": "int"
+				"type": "int",
+				"defaultValue": 0
 			}
 		},
 		"annotations": []
