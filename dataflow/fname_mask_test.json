@@ -41,7 +41,7 @@
 			],
 			"scriptLines": [
 				"parameters{",
-				"     seed as integer",
+				"     seed as integer (0)",
 				"}",
 				"source(output(",
 				"          empID as string,",
@@ -70,7 +70,7 @@
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> rowSelection",
-				"inputFile derive(maskedIndex = mod(crc32(name),1000)) ~> nameMasking",
+				"inputFile derive(maskedIndex = mod(crc32(name)+$seed,1000)) ~> nameMasking",
 				"nameMasking, firstNameLKP lookup(maskedIndex == sno,",
 				"     multiple: false,",
 				"     pickup: 'any',",
