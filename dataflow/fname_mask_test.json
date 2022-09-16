@@ -1,5 +1,5 @@
 {
-	"name": "mask_test",
+	"name": "fname_mask_test",
 	"properties": {
 		"type": "MappingDataFlow",
 		"typeProperties": {
