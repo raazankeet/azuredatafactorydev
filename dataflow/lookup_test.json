@@ -9,7 +9,7 @@
 						"referenceName": "ds_emp_in",
 						"type": "DatasetReference"
 					},
-					"name": "source1"
+					"name": "inputFile"
 				},
 				{
 					"dataset": {
@@ -25,12 +25,12 @@
 						"referenceName": "dummy_op_ds",
 						"type": "DatasetReference"
 					},
-					"name": "sink1"
+					"name": "maskedFile"
 				}
 			],
 			"transformations": [
 				{
-					"name": "lookup1"
+					"name": "firstNameMasking"
 				}
 			],
 			"scriptLines": [
@@ -43,7 +43,7 @@
 				"     ),",
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
-				"     ignoreNoFilesFound: false) ~> source1",
+				"     ignoreNoFilesFound: false) ~> inputFile",
 				"source(output(",
 				"          sno as string,",
 				"          Fname as string",
@@ -51,11 +51,11 @@
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     ignoreNoFilesFound: false) ~> firstNameLKP",
-				"source1, firstNameLKP lookup(empID == sno,",
+				"inputFile, firstNameLKP lookup(empID == sno,",
 				"     multiple: false,",
 				"     pickup: 'any',",
-				"     broadcast: 'auto')~> lookup1",
-				"lookup1 sink(allowSchemaDrift: true,",
+				"     broadcast: 'auto')~> firstNameMasking",
+				"firstNameMasking sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     partitionFileNames:['maskedfile.csv'],",
 				"     umask: 0022,",
@@ -63,7 +63,7 @@
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
-				"     partitionBy('hash', 1)) ~> sink1"
+				"     partitionBy('hash', 1)) ~> maskedFile"
 			]
 		}
 	}
