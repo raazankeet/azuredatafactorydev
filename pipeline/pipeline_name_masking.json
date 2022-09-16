@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "nameMasking",
+				"name": "namemasking",
 				"type": "ExecuteDataFlow",
 				"dependsOn": [],
 				"policy": {
@@ -17,7 +17,13 @@
 				"typeProperties": {
 					"dataflow": {
 						"referenceName": "fname_mask_test",
-						"type": "DataFlowReference"
+						"type": "DataFlowReference",
+						"parameters": {
+							"seed": {
+								"value": "@pipeline().parameters.pipeline_seed",
+								"type": "Expression"
+							}
+						}
 					},
 					"compute": {
 						"coreCount": 8,
@@ -29,13 +35,8 @@
 		],
 		"parameters": {
 			"pipeline_seed": {
-				"type": "int",
-				"defaultValue": 0
-			}
-		},
-		"variables": {
-			"s": {
-				"type": "String"
+				"type": "string",
+				"defaultValue": "0"
 			}
 		},
 		"annotations": []
