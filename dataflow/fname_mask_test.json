@@ -77,7 +77,7 @@
 				"     broadcast: 'auto')~> getIndexBasedName",
 				"rowSelection sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
-				"     partitionFileNames:['maskedfile.csv'],",
+				"     partitionFileNames:[(concat(toString($seed), '.csv'))],",
 				"     umask: 0022,",
 				"     preCommands: [],",
 				"     postCommands: [],",
