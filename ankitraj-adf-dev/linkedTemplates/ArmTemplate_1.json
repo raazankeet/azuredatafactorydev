@@ -150,6 +150,12 @@
 					"elapsedTimeMetric": {},
 					"cancelAfter": {}
 				},
+				"parameters": {
+					"pipeline_seed": {
+						"type": "int",
+						"defaultValue": 0
+					}
+				},
 				"annotations": []
 			},
 			"dependsOn": []
