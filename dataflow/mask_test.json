@@ -1,0 +1,83 @@
+{
+	"name": "mask_test",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_emp_in",
+						"type": "DatasetReference"
+					},
+					"name": "inputFile"
+				},
+				{
+					"dataset": {
+						"referenceName": "first_name_lkp",
+						"type": "DatasetReference"
+					},
+					"name": "firstNameLKP"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "dummy_op_ds",
+						"type": "DatasetReference"
+					},
+					"name": "maskedFile"
+				}
+			],
+			"transformations": [
+				{
+					"name": "firstNameMasking"
+				},
+				{
+					"name": "rowSelection"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          empID as string,",
+				"          name as string,",
+				"          country as string,",
+				"          salary as string,",
+				"          department as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> inputFile",
+				"source(output(",
+				"          sno as string,",
+				"          Fname as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> firstNameLKP",
+				"inputFile, firstNameLKP lookup(empID == sno,",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'auto')~> firstNameMasking",
+				"firstNameMasking select(mapColumn(",
+				"          empID,",
+				"          name,",
+				"          country,",
+				"          salary,",
+				"          department,",
+				"          Fname",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> rowSelection",
+				"rowSelection sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     partitionFileNames:['maskedfile.csv'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     partitionBy('hash', 1)) ~> maskedFile"
+			]
+		}
+	}
+}
