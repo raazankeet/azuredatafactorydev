@@ -40,6 +40,9 @@
 				}
 			],
 			"scriptLines": [
+				"parameters{",
+				"     seed as integer",
+				"}",
 				"source(output(",
 				"          empID as string,",
 				"          name as string,",

@@ -27,6 +27,11 @@
 				}
 			}
 		],
+		"parameters": {
+			"pipeline_seed": {
+				"type": "int"
+			}
+		},
 		"annotations": []
 	}
 }
