@@ -9,7 +9,8 @@
 						"referenceName": "ds_emp_in",
 						"type": "DatasetReference"
 					},
-					"name": "inputFile"
+					"name": "inputFile",
+					"description": "Import data from ds_emp_in from ADF"
 				},
 				{
 					"dataset": {
