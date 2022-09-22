@@ -22,6 +22,9 @@
 				},
 				{
 					"name": "inputFname"
+				},
+				{
+					"name": "output1"
 				}
 			],
 			"scriptLines": [
@@ -52,7 +55,11 @@
 				"FnameHasher, FirstNameDictionary lookup(HashFname == sno,",
 				"     multiple: false,",
 				"     pickup: 'any',",
-				"     broadcast: 'auto')~> NameSeeker"
+				"     broadcast: 'auto')~> NameSeeker",
+				"NameSeeker output(mapColumn(",
+				"          inputFname,",
+				"          Fname",
+				"     )) ~> output1"
 			]
 		}
 	}
