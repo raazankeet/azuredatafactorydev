@@ -1,0 +1,97 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "ankitadf-dev"
+		},
+		"Lnkd_ankitadlsadf_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'Lnkd_ankitadlsadf'"
+		},
+		"Lnkd_ankitadlsadf_onprem_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'Lnkd_ankitadlsadf_onprem'"
+		},
+		"onprem_sqlserver_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'onprem_sqlserver'"
+		},
+		"Lnkd_ankitadlsadf_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://ankitstg.dfs.core.windows.net/"
+		},
+		"Lnkd_ankitadlsadf_onprem_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://ankitstg.dfs.core.windows.net/"
+		},
+		"containerUri": {
+			"type": "string",
+			"metadata": "URI to storage account containing linked ARM templates"
+		},
+		"containerSasToken": {
+			"type": "string",
+			"metadata": "Sas token to storage account containing linked ARM templates"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "ankitadf-dev_ArmTemplate_0",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2018-02-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_0.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					},
+					"Lnkd_ankitadlsadf_accountKey": {
+						"value": "[parameters('Lnkd_ankitadlsadf_accountKey')]"
+					},
+					"Lnkd_ankitadlsadf_onprem_accountKey": {
+						"value": "[parameters('Lnkd_ankitadlsadf_onprem_accountKey')]"
+					},
+					"onprem_sqlserver_connectionString": {
+						"value": "[parameters('onprem_sqlserver_connectionString')]"
+					},
+					"Lnkd_ankitadlsadf_properties_typeProperties_url": {
+						"value": "[parameters('Lnkd_ankitadlsadf_properties_typeProperties_url')]"
+					},
+					"Lnkd_ankitadlsadf_onprem_properties_typeProperties_url": {
+						"value": "[parameters('Lnkd_ankitadlsadf_onprem_properties_typeProperties_url')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "ankitadf-dev_ArmTemplate_1",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2018-02-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_1.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					}
+				}
+			},
+			"dependsOn": [
+				"[resourceId('Microsoft.Resources/deployments', 'ankitadf-dev_ArmTemplate_0')]"
+			]
+		}
+	]
+}

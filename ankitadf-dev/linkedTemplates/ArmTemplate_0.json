@@ -1,0 +1,1312 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "ankitadf-dev"
+		},
+		"Lnkd_ankitadlsadf_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'Lnkd_ankitadlsadf'"
+		},
+		"Lnkd_ankitadlsadf_onprem_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'Lnkd_ankitadlsadf_onprem'"
+		},
+		"onprem_sqlserver_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'onprem_sqlserver'"
+		},
+		"Lnkd_ankitadlsadf_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://ankitstg.dfs.core.windows.net/"
+		},
+		"Lnkd_ankitadlsadf_onprem_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://ankitstg.dfs.core.windows.net/"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/Lnkd_ankitadlsadf')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('Lnkd_ankitadlsadf_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('Lnkd_ankitadlsadf_accountKey')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/onpremruntime')]",
+			"type": "Microsoft.DataFactory/factories/integrationRuntimes",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "SelfHosted",
+				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_dept_in')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "Lnkd_ankitadlsadf",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "dept.csv",
+						"fileSystem": "input"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "deptID",
+						"type": "String"
+					},
+					{
+						"name": "deptName",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_emp_in')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "Lnkd_ankitadlsadf",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "emp.csv",
+						"fileSystem": "input"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "empID",
+						"type": "String"
+					},
+					{
+						"name": "name",
+						"type": "String"
+					},
+					{
+						"name": "country",
+						"type": "String"
+					},
+					{
+						"name": "salary",
+						"type": "String"
+					},
+					{
+						"name": "department",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_emp_out')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "Lnkd_ankitadlsadf",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"fileName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().fileName",
+							"type": "Expression"
+						},
+						"fileSystem": "output"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dummy_op_ds')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "Lnkd_ankitadlsadf",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileSystem": "output"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/first_name_lkp')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "Lnkd_ankitadlsadf",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "first_names.csv",
+						"fileSystem": "lookup-dictionaries"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "sno",
+						"type": "String"
+					},
+					{
+						"name": "Fname",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Lnkd_ankitadlsadf_onprem')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('Lnkd_ankitadlsadf_onprem_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('Lnkd_ankitadlsadf_onprem_accountKey')]"
+					}
+				},
+				"connectVia": {
+					"referenceName": "onpremruntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/integrationRuntimes/onpremruntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/onprem_sqlserver')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "my on prem sql server",
+				"annotations": [],
+				"type": "SqlServer",
+				"typeProperties": {
+					"connectionString": "[parameters('onprem_sqlserver_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "onpremruntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/integrationRuntimes/onpremruntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/my_1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy Emp To Opt",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_emp_in",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_emp_out",
+								"type": "DatasetReference",
+								"parameters": {
+									"fileName": "emp.csv"
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_emp_in')]",
+				"[concat(variables('factoryId'), '/datasets/ds_emp_out')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/onprem_in_student')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "onprem_sqlserver",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"table_name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": [
+					{
+						"name": "SROLLNO",
+						"type": "decimal",
+						"precision": 20,
+						"scale": 0
+					},
+					{
+						"name": "AGE",
+						"type": "float",
+						"precision": 15
+					},
+					{
+						"name": "NAMES",
+						"type": "nvarchar"
+					},
+					{
+						"name": "EFEES",
+						"type": "decimal",
+						"precision": 10,
+						"scale": 2
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": {
+						"value": "@dataset().table_name",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/onprem_sqlserver')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/fname_mask_test')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_emp_in",
+								"type": "DatasetReference"
+							},
+							"name": "inputFile",
+							"description": "Import data from ds_emp_in from ADF for testing"
+						},
+						{
+							"dataset": {
+								"referenceName": "first_name_lkp",
+								"type": "DatasetReference"
+							},
+							"name": "firstNameLKP"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "dummy_op_ds",
+								"type": "DatasetReference"
+							},
+							"name": "maskedFile"
+						}
+					],
+					"transformations": [
+						{
+							"name": "rowSelection"
+						},
+						{
+							"name": "nameMasking"
+						},
+						{
+							"name": "getIndexBasedName"
+						}
+					],
+					"scriptLines": [
+						"parameters{",
+						"     seed as integer (0)",
+						"}",
+						"source(output(",
+						"          empID as string,",
+						"          name as string,",
+						"          country as string,",
+						"          salary as string,",
+						"          department as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> inputFile",
+						"source(output(",
+						"          sno as integer,",
+						"          Fname as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> firstNameLKP",
+						"getIndexBasedName select(mapColumn(",
+						"          empID,",
+						"          name,",
+						"          maskedName = Fname,",
+						"          country,",
+						"          salary,",
+						"          department",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> rowSelection",
+						"inputFile derive(maskedIndex = mod(crc32(name)+$seed,1000)) ~> nameMasking",
+						"nameMasking, firstNameLKP lookup(maskedIndex == sno,",
+						"     multiple: false,",
+						"     pickup: 'any',",
+						"     broadcast: 'auto')~> getIndexBasedName",
+						"rowSelection sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:[(concat(toString($seed), '.csv'))],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> maskedFile"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_emp_in')]",
+				"[concat(variables('factoryId'), '/datasets/first_name_lkp')]",
+				"[concat(variables('factoryId'), '/datasets/dummy_op_ds')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/lookup_test')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_emp_in",
+								"type": "DatasetReference"
+							},
+							"name": "inputFile"
+						},
+						{
+							"dataset": {
+								"referenceName": "first_name_lkp",
+								"type": "DatasetReference"
+							},
+							"name": "firstNameLKP"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "dummy_op_ds",
+								"type": "DatasetReference"
+							},
+							"name": "maskedFile"
+						}
+					],
+					"transformations": [
+						{
+							"name": "firstNameMasking"
+						},
+						{
+							"name": "rowSelection"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          empID as string,",
+						"          name as string,",
+						"          country as string,",
+						"          salary as string,",
+						"          department as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> inputFile",
+						"source(output(",
+						"          sno as string,",
+						"          Fname as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> firstNameLKP",
+						"inputFile, firstNameLKP lookup(empID == sno,",
+						"     multiple: false,",
+						"     pickup: 'any',",
+						"     broadcast: 'auto')~> firstNameMasking",
+						"firstNameMasking select(mapColumn(",
+						"          empID,",
+						"          name,",
+						"          country,",
+						"          salary,",
+						"          department,",
+						"          Fname",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> rowSelection",
+						"rowSelection sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['maskedfile.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> maskedFile"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_emp_in')]",
+				"[concat(variables('factoryId'), '/datasets/first_name_lkp')]",
+				"[concat(variables('factoryId'), '/datasets/dummy_op_ds')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/my_1')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_emp_in",
+								"type": "DatasetReference"
+							},
+							"name": "Employee"
+						},
+						{
+							"dataset": {
+								"referenceName": "ds_dept_in",
+								"type": "DatasetReference"
+							},
+							"name": "Department"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ds_emp_out",
+								"type": "DatasetReference"
+							},
+							"name": "TargetByJoined"
+						}
+					],
+					"transformations": [
+						{
+							"name": "getDeptName"
+						},
+						{
+							"name": "select1"
+						},
+						{
+							"name": "SortBySalary"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          empID as string,",
+						"          name as string,",
+						"          country as string,",
+						"          salary as integer,",
+						"          department as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> Employee",
+						"source(output(",
+						"          deptID as integer,",
+						"          deptName as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> Department",
+						"Employee, Department join(department == deptID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> getDeptName",
+						"getDeptName select(mapColumn(",
+						"          empID,",
+						"          name,",
+						"          country,",
+						"          salary,",
+						"          deptID,",
+						"          deptName",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> select1",
+						"select1 sort(desc(salary, true)) ~> SortBySalary",
+						"SortBySalary sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['emp_dept_innerjoined.csv'],",
+						"     truncate: true,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     partitionBy('hash', 1)) ~> TargetByJoined"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_emp_in')]",
+				"[concat(variables('factoryId'), '/datasets/ds_dept_in')]",
+				"[concat(variables('factoryId'), '/datasets/ds_emp_out')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/odd_even_write_to_file')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_emp_in",
+								"type": "DatasetReference"
+							},
+							"name": "source1"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ds_emp_out",
+								"type": "DatasetReference"
+							},
+							"name": "evenFile",
+							"rejectedDataLinkedService": {
+								"referenceName": "Lnkd_ankitadlsadf",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"dataset": {
+								"referenceName": "ds_emp_out",
+								"type": "DatasetReference"
+							},
+							"name": "oddFile"
+						}
+					],
+					"transformations": [
+						{
+							"name": "addRowCount"
+						},
+						{
+							"name": "split1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          empID as string,",
+						"          name as string,",
+						"          country as string,",
+						"          salary as string,",
+						"          department as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> source1",
+						"source1 keyGenerate(output(record_count as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> addRowCount",
+						"addRowCount split(record_count%2==0,",
+						"     disjoint: false) ~> split1@(evenFile, oddFile)",
+						"split1@evenFile sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['evenrecs.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     saveOrder: 1,",
+						"     mapColumn(",
+						"          empID,",
+						"          name,",
+						"          country,",
+						"          salary,",
+						"          department",
+						"     ),",
+						"     partitionBy('hash', 1)) ~> evenFile",
+						"split1@oddFile sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['oddrecs.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     saveOrder: 2,",
+						"     mapColumn(",
+						"          empID,",
+						"          name,",
+						"          country,",
+						"          salary,",
+						"          department",
+						"     ),",
+						"     partitionBy('hash', 1)) ~> oddFile"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_emp_in')]",
+				"[concat(variables('factoryId'), '/datasets/ds_emp_out')]",
+				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/odd_even_write_to_file_new_coll')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_emp_in",
+								"type": "DatasetReference"
+							},
+							"name": "source1"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "dummy_op_ds",
+								"type": "DatasetReference"
+							},
+							"name": "sink1"
+						},
+						{
+							"dataset": {
+								"referenceName": "dummy_op_ds",
+								"type": "DatasetReference"
+							},
+							"name": "sink2"
+						}
+					],
+					"transformations": [
+						{
+							"name": "addRowCount"
+						},
+						{
+							"name": "split1"
+						},
+						{
+							"name": "derivedColumn1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          empID as string,",
+						"          name as string,",
+						"          country as string,",
+						"          salary as string,",
+						"          department as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> source1",
+						"source1 keyGenerate(output(record_count as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> addRowCount",
+						"derivedColumn1 split(record_count%2==0,",
+						"     disjoint: false) ~> split1@(evenFile, oddFile)",
+						"addRowCount derive(new_column = sha1(md5(name))) ~> derivedColumn1",
+						"split1@evenFile sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['even.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     mapColumn(",
+						"          empID,",
+						"          name,",
+						"          country,",
+						"          salary,",
+						"          department,",
+						"          record_count,",
+						"          new_column",
+						"     ),",
+						"     partitionBy('hash', 1)) ~> sink1",
+						"split1@oddFile sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['odd.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     mapColumn(",
+						"          empID,",
+						"          name,",
+						"          country,",
+						"          salary,",
+						"          department,",
+						"          record_count,",
+						"          new_column",
+						"     ),",
+						"     partitionBy('hash', 1)) ~> sink2"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_emp_in')]",
+				"[concat(variables('factoryId'), '/datasets/dummy_op_ds')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/odd_even_write_to_file_new_try')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_emp_in",
+								"type": "DatasetReference"
+							},
+							"name": "source1"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ds_emp_out",
+								"type": "DatasetReference"
+							},
+							"name": "evenFile",
+							"rejectedDataLinkedService": {
+								"referenceName": "Lnkd_ankitadlsadf",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"dataset": {
+								"referenceName": "ds_emp_out",
+								"type": "DatasetReference"
+							},
+							"name": "oddFile"
+						}
+					],
+					"transformations": [
+						{
+							"name": "addRowCount"
+						},
+						{
+							"name": "split1"
+						},
+						{
+							"name": "derivedColumn1"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          empID as string,",
+						"          name as string,",
+						"          country as string,",
+						"          salary as string,",
+						"          department as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> source1",
+						"source1 keyGenerate(output(record_count as long),",
+						"     startAt: 1L,",
+						"     stepValue: 1L) ~> addRowCount",
+						"derivedColumn1 split(record_count%2==0,",
+						"     disjoint: false) ~> split1@(evenFile, oddFile)",
+						"addRowCount derive(sha_value = sha1(name)) ~> derivedColumn1",
+						"split1@evenFile sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['evenrecs.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     saveOrder: 1,",
+						"     mapColumn(",
+						"          empID,",
+						"          name,",
+						"          country,",
+						"          salary,",
+						"          department,",
+						"          sha_value",
+						"     ),",
+						"     partitionBy('hash', 1)) ~> evenFile",
+						"split1@oddFile sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     partitionFileNames:['oddrecs.csv'],",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     saveOrder: 2,",
+						"     mapColumn(",
+						"          empID,",
+						"          name,",
+						"          country,",
+						"          salary,",
+						"          department,",
+						"          sha_value",
+						"     ),",
+						"     partitionBy('hash', 1)) ~> oddFile"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_emp_in')]",
+				"[concat(variables('factoryId'), '/datasets/ds_emp_out')]",
+				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/copy_onprem_student_1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy student",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Delete target table",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [
+							{
+								"name": "Source",
+								"value": "dbo.@{'Student_SRC'}"
+							},
+							{
+								"name": "Destination",
+								"value": "dbo.@{'Student_SRC_NEW'}"
+							}
+						],
+						"typeProperties": {
+							"source": {
+								"type": "SqlServerSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "SqlServerSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false,
+							"logSettings": {
+								"enableCopyActivityLog": true,
+								"copyActivityLogSettings": {
+									"logLevel": "Info",
+									"enableReliableLogging": true
+								},
+								"logLocationSettings": {
+									"linkedServiceName": {
+										"referenceName": "Lnkd_ankitadlsadf",
+										"type": "LinkedServiceReference"
+									},
+									"path": "output"
+								}
+							},
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "SROLLNO",
+											"type": "Decimal",
+											"physicalType": "decimal",
+											"scale": 0,
+											"precision": 20
+										},
+										"sink": {
+											"name": "SROLLNO"
+										}
+									},
+									{
+										"source": {
+											"name": "AGE",
+											"type": "Double",
+											"physicalType": "float"
+										},
+										"sink": {
+											"name": "AGE"
+										}
+									},
+									{
+										"source": {
+											"name": "NAMES",
+											"type": "String",
+											"physicalType": "nvarchar"
+										},
+										"sink": {
+											"name": "NAMES"
+										}
+									},
+									{
+										"source": {
+											"name": "EFEES",
+											"type": "Decimal",
+											"physicalType": "decimal",
+											"scale": 2,
+											"precision": 10
+										},
+										"sink": {
+											"name": "EFEES"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "onprem_in_student",
+								"type": "DatasetReference",
+								"parameters": {
+									"table_name": {
+										"value": "@pipeline().parameters.src_table_name",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "onprem_in_student",
+								"type": "DatasetReference",
+								"parameters": {
+									"table_name": {
+										"value": "@pipeline().parameters.tgt_table_name",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "Delete target table",
+						"type": "Script",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "onprem_sqlserver",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "Query",
+									"text": {
+										"value": "@{concat('Truncate table ',pipeline().parameters.tgt_table_name)}",
+										"type": "Expression"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"src_table_name": {
+						"type": "string",
+						"defaultValue": "Student_SRC"
+					},
+					"tgt_table_name": {
+						"type": "string",
+						"defaultValue": "Student_SRC_NEW"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/onprem_in_student')]",
+				"[concat(variables('factoryId'), '/linkedServices/onprem_sqlserver')]",
+				"[concat(variables('factoryId'), '/linkedServices/Lnkd_ankitadlsadf')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/demoMasking')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "fnameMasking",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "lookup_test",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"inputFile": {},
+									"firstNameLKP": {},
+									"maskedFile": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/lookup_test')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/my_2_InnerJoin')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "InnerJoin",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "my_1",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"Employee": {},
+									"Department": {},
+									"TargetByJoined": {
+										"fileName": "empdeptinnerjoin.csv"
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/my_1')]"
+			]
+		}
+	]
+}
