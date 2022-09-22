@@ -1,0 +1,7 @@
+{
+	"name": "onpremruntime",
+	"properties": {
+		"type": "SelfHosted",
+		"description": "this is on prem runtime"
+	}
+}
