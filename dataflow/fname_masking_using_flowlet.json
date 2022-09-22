@@ -42,7 +42,7 @@
 				"     mapColumn(",
 				"          fname = name",
 				"     ),",
-				"     composition: 'flowlet_fname') ~> FnameMasking@(temporary)"
+				"     composition: 'flowlet_fname') ~> FnameMasking@(MaskedName)"
 			]
 		}
 	}

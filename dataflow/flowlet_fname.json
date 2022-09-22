@@ -24,7 +24,7 @@
 					"name": "inputFname"
 				},
 				{
-					"name": "output1"
+					"name": "MaskedName"
 				}
 			],
 			"scriptLines": [
@@ -59,7 +59,7 @@
 				"NameSeeker output(mapColumn(",
 				"          inputFname,",
 				"          Fname",
-				"     )) ~> output1"
+				"     )) ~> MaskedName"
 			]
 		}
 	}
