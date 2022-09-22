@@ -21,9 +21,6 @@
 					"name": "nameHasher"
 				},
 				{
-					"name": "fname"
-				},
-				{
 					"name": "maskFname"
 				}
 			],
@@ -31,10 +28,6 @@
 				"parameters{",
 				"     seed as integer (0)",
 				"}",
-				"input(output(",
-				"          fname as string",
-				"     ),",
-				"     order: 0) ~> fname",
 				"source(output(",
 				"          sno as integer,",
 				"          Fname as string",
@@ -54,7 +47,7 @@
 				"     multiple: false,",
 				"     pickup: 'any',",
 				"     broadcast: 'auto')~> fnameLKP",
-				"fname derive(name_Hash = mod(crc32(fname)+$seed,1000)) ~> nameHasher",
+				" derive(name_Hash = mod(crc32(fname)+$seed,1000)) ~> nameHasher",
 				"fnameLKP output(mapColumn(",
 				"          inputFname = fname@fname,",
 				"          MSKFname = firstNameDictionary@Fname",
