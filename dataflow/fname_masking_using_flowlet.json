@@ -40,7 +40,7 @@
 				"          seed = 0",
 				"     ),",
 				"     mapColumn(",
-				"          fname = name",
+				"          inputFname = name",
 				"     ),",
 				"     composition: 'flowlet_fname') ~> FnameMasking@(MaskedName)"
 			]
