@@ -1,0 +1,79 @@
+{
+	"name": "fname_masking_using_flowlet",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_emp_in",
+						"type": "DatasetReference"
+					},
+					"name": "inputFile"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "dummy_op_ds",
+						"type": "DatasetReference"
+					},
+					"name": "outputFile"
+				}
+			],
+			"transformations": [
+				{
+					"name": "FnameMasking",
+					"flowlet": {
+						"referenceName": "flowlet_fname",
+						"type": "DataFlowReference",
+						"parameters": {
+							"seed": "0"
+						}
+					}
+				},
+				{
+					"name": "Combiner"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          empID as string,",
+				"          name as string,",
+				"          country as string,",
+				"          salary as string,",
+				"          department as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> inputFile",
+				"inputFile compose(mapParameter(",
+				"          seed = 0",
+				"     ),",
+				"     mapColumn(",
+				"          fname = name",
+				"     ),",
+				"     composition: 'flowlet_fname') ~> FnameMasking@(maskFname)",
+				"FnameMasking@maskFname, inputFile union(byName: true)~> Combiner",
+				"Combiner sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     partitionFileNames:['fnameFlowLetmasked.csv'],",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 1,",
+				"     mapColumn(",
+				"          Fname,",
+				"          empID,",
+				"          name,",
+				"          country,",
+				"          salary,",
+				"          department",
+				"     ),",
+				"     partitionBy('hash', 1)) ~> outputFile"
+			]
+		}
+	}
+}
