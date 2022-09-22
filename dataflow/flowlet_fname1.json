@@ -1,0 +1,64 @@
+{
+	"name": "flowlet_fname1",
+	"properties": {
+		"type": "Flowlet",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "Lnkd_ankitadlsadf",
+						"type": "LinkedServiceReference"
+					},
+					"name": "firstNameDictionary"
+				}
+			],
+			"sinks": [],
+			"transformations": [
+				{
+					"name": "fnameLKP"
+				},
+				{
+					"name": "nameHasher"
+				},
+				{
+					"name": "fname"
+				},
+				{
+					"name": "maskFname"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     seed as integer (0)",
+				"}",
+				"input(output(",
+				"          fname as string",
+				"     ),",
+				"     order: 0) ~> fname",
+				"source(output(",
+				"          sno as integer,",
+				"          Fname as string",
+				"     ),",
+				"     useSchema: false,",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'delimited',",
+				"     fileSystem: 'lookup-dictionaries',",
+				"     fileName: 'first_names.csv',",
+				"     columnDelimiter: ',',",
+				"     escapeChar: '\\\\',",
+				"     quoteChar: '\\\"',",
+				"     columnNamesAsHeader: true) ~> firstNameDictionary",
+				"nameHasher, firstNameDictionary lookup(name_Hash == sno,",
+				"     multiple: false,",
+				"     pickup: 'any',",
+				"     broadcast: 'auto')~> fnameLKP",
+				"fname derive(name_Hash = mod(crc32(fname)+$seed,1000)) ~> nameHasher",
+				"fnameLKP output(mapColumn(",
+				"          Fname = firstNameDictionary@Fname",
+				"     )) ~> maskFname"
+			]
+		}
+	}
+}
