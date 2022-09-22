@@ -9,32 +9,37 @@
 						"referenceName": "Lnkd_ankitadlsadf",
 						"type": "LinkedServiceReference"
 					},
-					"name": "firstNameDictionary"
+					"name": "FirstNameDictionary"
 				}
 			],
 			"sinks": [],
 			"transformations": [
 				{
-					"name": "fnameLKP"
+					"name": "FnameHasher"
 				},
 				{
-					"name": "nameHasher"
+					"name": "NameSeeker"
 				},
 				{
-					"name": "maskFname"
+					"name": "inputFname"
 				}
 			],
 			"scriptLines": [
 				"parameters{",
 				"     seed as integer (0)",
 				"}",
+				"input(output(",
+				"          inputFname as string",
+				"     ),",
+				"     order: 0) ~> inputFname",
 				"source(output(",
-				"          sno as integer,",
+				"          sno as long,",
 				"          Fname as string",
 				"     ),",
 				"     useSchema: false,",
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
+				"     limit: 100,",
 				"     ignoreNoFilesFound: false,",
 				"     format: 'delimited',",
 				"     fileSystem: 'lookup-dictionaries',",
@@ -42,16 +47,12 @@
 				"     columnDelimiter: ',',",
 				"     escapeChar: '\\\\',",
 				"     quoteChar: '\\\"',",
-				"     columnNamesAsHeader: true) ~> firstNameDictionary",
-				"nameHasher, firstNameDictionary lookup(name_Hash == sno,",
+				"     columnNamesAsHeader: true) ~> FirstNameDictionary",
+				"inputFname derive(HashFname = mod(crc32(inputFname)+$seed,1000)) ~> FnameHasher",
+				"FnameHasher, FirstNameDictionary lookup(HashFname == sno,",
 				"     multiple: false,",
 				"     pickup: 'any',",
-				"     broadcast: 'auto')~> fnameLKP",
-				" derive(name_Hash = mod(crc32(fname)+$seed,1000)) ~> nameHasher",
-				"fnameLKP output(mapColumn(",
-				"          inputFname = fname@fname,",
-				"          MSKFname = firstNameDictionary@Fname",
-				"     )) ~> maskFname"
+				"     broadcast: 'auto')~> NameSeeker"
 			]
 		}
 	}
