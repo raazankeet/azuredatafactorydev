@@ -18,7 +18,7 @@
 						"referenceName": "dummy_op_ds",
 						"type": "DatasetReference"
 					},
-					"name": "outputFile"
+					"name": "sink1"
 				}
 			],
 			"transformations": [
@@ -33,7 +33,7 @@
 					}
 				},
 				{
-					"name": "Combiner"
+					"name": "join1"
 				}
 			],
 			"scriptLines": [
@@ -54,25 +54,20 @@
 				"          fname = name",
 				"     ),",
 				"     composition: 'flowlet_fname') ~> FnameMasking@(maskFname)",
-				"FnameMasking@maskFname, inputFile union(byName: true)~> Combiner",
-				"Combiner sink(allowSchemaDrift: true,",
+				"FnameMasking@maskFname join(ERROR_FUNCTION('') == ERROR_FUNCTION(''),",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> join1",
+				"join1 sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
-				"     partitionFileNames:['fnameFlowLetmasked.csv'],",
+				"     partitionFileNames:['outputFile'],",
 				"     umask: 0022,",
 				"     preCommands: [],",
 				"     postCommands: [],",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
-				"     saveOrder: 1,",
-				"     mapColumn(",
-				"          Fname,",
-				"          empID,",
-				"          name,",
-				"          country,",
-				"          salary,",
-				"          department",
-				"     ),",
-				"     partitionBy('hash', 1)) ~> outputFile"
+				"     partitionBy('hash', 1)) ~> sink1"
 			]
 		}
 	}
