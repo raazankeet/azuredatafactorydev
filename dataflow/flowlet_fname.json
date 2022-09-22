@@ -56,8 +56,8 @@
 				"     broadcast: 'auto')~> fnameLKP",
 				"fname derive(name_Hash = mod(crc32(fname)+$seed,1000)) ~> nameHasher",
 				"fnameLKP output(mapColumn(",
-				"          MSKFname = firstNameDictionary@Fname,",
-				"          inputFname = fname@fname",
+				"          inputFname = fname@fname,",
+				"          MSKFname = firstNameDictionary@Fname",
 				"     )) ~> maskFname"
 			]
 		}
