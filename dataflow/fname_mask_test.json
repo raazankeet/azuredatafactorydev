@@ -10,7 +10,7 @@
 						"type": "DatasetReference"
 					},
 					"name": "inputFile",
-					"description": "Import data from ds_emp_in from ADF"
+					"description": "Import data from ds_emp_in from ADF for testing"
 				},
 				{
 					"dataset": {

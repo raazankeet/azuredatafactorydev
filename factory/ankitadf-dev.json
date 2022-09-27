@@ -1,0 +1,9 @@
+{
+	"name": "ankitadf-dev",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "605a9d1d-848d-4220-b712-182a65be215e",
+		"tenantId": "781c73c2-c395-478c-8059-d0abe854bd4f"
+	}
+}

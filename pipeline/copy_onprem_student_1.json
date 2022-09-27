@@ -175,6 +175,8 @@
 				"defaultValue": "Student_SRC_NEW"
 			}
 		},
-		"annotations": []
-	}
+		"annotations": [],
+		"lastPublishTime": "2022-09-22T18:29:17Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
 }
