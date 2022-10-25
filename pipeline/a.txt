@@ -1,0 +1,793 @@
+package com.optum.pca.services.common;
+
+import java.io.*;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+
+import com.optum.pca.constants.ApplicationObjects;
+import com.optum.pca.dao.common.*;
+import com.optum.pca.exceptions.common.ConfigFileReaderException;
+import com.optum.pca.exceptions.common.UserDataException;
+import com.optum.pca.exceptions.validator.ObjectValidatorException;
+import com.optum.pca.validator.GenericObjectValidator;
+import org.apache.commons.collections.ListUtils;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
+import org.ini4j.Profile;
+import org.ini4j.Wini;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
+import org.yaml.snakeyaml.error.YAMLException;
+
+import static com.optum.pca.constants.ApplicationConstants.*;
+import static com.optum.pca.constants.ApplicationObjects.*;
+
+@Slf4j
+@Service
+public class FileReaderServiceImpl implements FileReaderService {
+
+    /**
+     * Map with key as Mapplet Name and Value as Mapplet Object
+     * It contains all unique mapplets along with the list of their input and output ports
+     */
+    private Map<String, Mapplet> uniqueMappletsMap = new HashMap<>();
+
+    @Autowired
+    ApplicationInputs applicationInputs;
+
+    @Autowired
+    ApplicationConfiguration applicationConfiguration;
+
+    @Autowired
+    GenericObjectValidator genericObjectValidator;
+
+    private List<String> errorStrings = new ArrayList<>();
+
+    @Override
+    public void run() throws ConfigFileReaderException, UserDataException, IOException {
+
+        readConfigFile();
+        try {
+            genericObjectValidator.validate(applicationConfiguration);
+        } catch (ObjectValidatorException e) {
+            log.error("Exception while validating the applicationConfiguration object : " + e.getMessage());
+            throw new ConfigFileReaderException("Exception while validating the applicationConfiguration object : " + e.getMessage() + " in " + applicationInputs.getLocaldeIdConfigsRepoPath() + SLASH + APPLICATION_NAME + SLASH + applicationInputs.getConfigFilePath());
+        }
+
+        ApplicationObjects.setMappletRuleEntryMap(readMappletDescriptorFile());
+        ApplicationObjects.setUniqueMappletsMap(generateUniqueMappletsMap());
+        ApplicationObjects.setMappletCompositionMap(readMappletCompositionFile());
+
+        readInputFiles();
+        ApplicationObjects.setXmlfilesContentMap(readAllXMLFilesInDirectory(applicationInputs.getLocaldeIdConfigsRepoPath() + SLASH + APPLICATION_NAME+ SLASH + CONFIG_XML_FOLDER_NAME + SLASH + applicationInputs.getSourceType()));
+    }
+
+
+    private void readInputFiles() throws ConfigFileReaderException, UserDataException, IOException {
+        try {
+            File userInputFilePath = new File(applicationInputs.getLocaldeIdPlatformRepoPath()+ SLASH + applicationInputs.getClientName() + SLASH + applicationInputs.getClientSrc());
+            for (String file : userInputFilePath.list()) {
+                if (file.equalsIgnoreCase(FLATFILE_LAYOUT_DESCRIPTOR_FILE) || file.equalsIgnoreCase(FLATFILE_LAYOUT_FILE)) {
+                    applicationInputs.setSourceType(FLATFILE_SOURCE);
+                    log.debug("!!! Request is for Flatfile source !!!");
+                    ApplicationObjects.setLayoutFileEntries(readLayoutFile());
+                    ApplicationObjects.setLayoutDescriptor(readLayoutDescriptorFile());
+                } else if (file.equalsIgnoreCase(TABLE_DESCRIPTOR_FILE) || file.equalsIgnoreCase(TABLE_LAYOUT_FILE)) {
+                    log.debug("!!! Request is for MSSQL Data source !!!");
+                    ApplicationObjects.setTableLayoutFileEntriesMap(readTableLayoutFile());
+                    ApplicationObjects.setTableDescriptor(readTableDescriptorFile());
+                }
+            }
+
+        } catch (UserDataException | FileNotFoundException e) {
+            log.error("Exception while reading input files : "+ e.getMessage());
+            String error = String.join("\n",errorStrings);
+            log.debug("Creating error reportfile for the user data errors!!! ");
+            String directorypath = OUTPUT_DIR + SLASH + applicationInputs.getRequestNumber() + SLASH + "reportfiles" + SLASH;
+            File directory = new File(directorypath);
+            if (! directory.exists()) {
+                directory.mkdirs();
+            }
+
+            String reportFile = directorypath + SLASH + applicationInputs.getRequestNumber() + UNDERSCORE + "report.txt";
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(reportFile, true))){
+                bw.append(error);
+                bw.append("\n----------------------------------------------------------------------------------------------------------------------------------------------------\n");
+            }
+            File reportFileObject = new File(reportFile);
+            log.debug("Reportfile created successfully at " + reportFileObject.getAbsolutePath());
+            throw new UserDataException(error);
+        }
+    }
+
+
+    private Map<String, List<TableLayoutFileEntry>> readTableLayoutFile() throws ConfigFileReaderException, UserDataException, FileNotFoundException {
+
+        Map<String, List<TableLayoutFileEntry>> tableLayoutFileEntriesMap = new HashMap<>();
+
+        String layoutFilePath = applicationInputs.getLocaldeIdPlatformRepoPath() + SLASH + applicationInputs.getClientName() + SLASH + applicationInputs.getClientSrc() + SLASH + TABLE_LAYOUT_FILE;
+        log.debug("Table Layout file local path is : " + layoutFilePath);
+        List headernames = new ArrayList();
+
+        try (Reader reader = new FileReader(layoutFilePath)){
+            CSVParser parser = new CSVParser(reader, CSVFormat.DEFAULT.withHeader());
+            headernames = parser.getHeaderNames();
+
+                 // List of Columns with Mandatory Values (Non empty values)
+                 List<String> mandatoryColumns = Arrays.asList(TABLE_NAME, COLUMN_NAME,
+                         DATA_TYPE, COLUMN_SIZE, COLUMN_SCALE, CHARACTER_MAX_LENGTH,
+                         IS_NULLABLE, SENSITIVE);
+
+                 List<CSVRecord> records = parser.getRecords();
+
+                 // Records With Missing Columns Validation
+                 Map<Integer, List<String>> recordsWithMissingColumns = validateCSVDataForMandatoryColumns(records, mandatoryColumns);
+                 if (!recordsWithMissingColumns.isEmpty()) {
+                     for (Map.Entry<Integer, List<String>> entry : recordsWithMissingColumns.entrySet()) {
+                         Integer recordNumber = entry.getKey();
+                         List<String> missingColumnsList = entry.getValue();
+                         errorStrings.add(missingColumnsList.toString() + " column can't be empty in the file: " + layoutFilePath.substring(22) + " at record number " + recordNumber);
+                         log.error(missingColumnsList.toString() + " column can't be empty in the file: " + layoutFilePath + " at record number " + recordNumber);
+                     }
+                 }
+
+                 // Records With Missing Rules for Sensitive Columns Validation
+                 List<Integer> missingRulesForSensitiveColumnsList = missingRulesForSensitiveColumnsValidation(records);
+                 if (!missingRulesForSensitiveColumnsList.isEmpty()) {
+                     for (Integer recordNumber : missingRulesForSensitiveColumnsList) {
+                         errorStrings.add("Rule can't be empty for the sensitive field [" + records.get(recordNumber-2).get(COLUMN_NAME) + "] in the file: " + layoutFilePath + " at record number " + recordNumber);
+                         log.error("Rule can't be empty for the sensitive field [" + records.get(recordNumber-2).get(COLUMN_NAME) + "] in the file: " + layoutFilePath + " at record number " + recordNumber);
+                     }
+                 }
+
+                 // Records With No Mapplets for Rules assigned to Sensitive Columns Validation
+                 List<Integer> ruleAndMappletValidationList = ruleAndMappletValidation(records);
+                 if (!ruleAndMappletValidationList.isEmpty()) {
+                     for (Integer recordNumber : ruleAndMappletValidationList) {
+                         errorStrings.add("Invalid rule [" + records.get(recordNumber - 2).get("Rule") + "] at record number " + recordNumber + " for column [" + records.get(recordNumber-2).get(COLUMN_NAME) + "] in file: " + layoutFilePath.substring(22));
+                         log.error("No mapplet found for rule [" + records.get(recordNumber - 2).get("Rule") + "] at record number " + recordNumber + " in " + layoutFilePath + " file");
+                     }
+                 }
+
+                 // Duplicate Columns with in the same table
+
+                 Map<String, Map<String, List<Long>>> duplicateColumnsMap = new HashMap<>();
+
+                 // Generating List of LayoutFileEntry objects from List of CSVRecords
+                 try {
+                     for (CSVRecord csvDataRecord : records) {
+                         TableLayoutFileEntry tableLayoutFileEntry = new TableLayoutFileEntry(1,
+                                 csvDataRecord.get(COLUMN_NAME),
+                                 csvDataRecord.get(DATA_TYPE).toLowerCase(),
+                                 csvDataRecord.get(COLUMN_SIZE),
+                                 csvDataRecord.get(COLUMN_SCALE),
+                                 csvDataRecord.get(CHARACTER_MAX_LENGTH),
+                                 null,
+                                 null,
+                                 null,
+                                 csvDataRecord.get(IS_NULLABLE).toLowerCase().charAt(0) == 'y' ? "NULL" : "NOTNULL",
+                                 csvDataRecord.get(SENSITIVE).toLowerCase().charAt(0) == 'y',
+                                 csvDataRecord.get(SENSITIVE).toLowerCase().charAt(0) == 'n' ? null : mappletRuleEntryMap.get(csvDataRecord.get(RULE)).getMappletName(),
+                                 csvDataRecord.get(SENSITIVE).toLowerCase().charAt(0) == 'n' ? null : mappletRuleEntryMap.get(csvDataRecord.get(RULE)).getMappletInputPort(),
+                                 csvDataRecord.get(SENSITIVE).toLowerCase().charAt(0) == 'n' ? null : mappletRuleEntryMap.get(csvDataRecord.get(RULE)).getMappletOutputPort(),
+                                 csvDataRecord.get(SENSITIVE).toLowerCase().charAt(0) == 'n' ? null : mappletRuleEntryMap.get(csvDataRecord.get(RULE)).getMappletVersion()
+                         );
+
+                         if (tableLayoutFileEntriesMap.containsKey(csvDataRecord.get(TABLE_NAME))) {
+                             List<TableLayoutFileEntry> oldList = tableLayoutFileEntriesMap.get(csvDataRecord.get(TABLE_NAME));
+                             Map<String, List<Long>> columnListMap = duplicateColumnsMap.get(csvDataRecord.get(TABLE_NAME));
+                             if (!oldList.isEmpty()) {
+                                 int lastid = oldList.get(oldList.size() - 1).getId();
+                                 tableLayoutFileEntry.setId(lastid + 1);
+                             }
+                             if (columnListMap.containsKey(tableLayoutFileEntry.getColumnName())) {
+                                 List<Long> recordList = columnListMap.get(tableLayoutFileEntry.getColumnName());
+                                 recordList.add(csvDataRecord.getRecordNumber() + 1);
+                                 columnListMap.put(tableLayoutFileEntry.getColumnName(), recordList);
+                             } else {
+                                 List<Long> recordList = new ArrayList<>();
+                                 recordList.add(csvDataRecord.getRecordNumber() + 1);
+                                 columnListMap.put(tableLayoutFileEntry.getColumnName(), recordList);
+                             }
+
+                             oldList.add(tableLayoutFileEntry);
+                             tableLayoutFileEntriesMap.put(csvDataRecord.get(TABLE_NAME), oldList);
+                             duplicateColumnsMap.put(csvDataRecord.get(TABLE_NAME), columnListMap);
+                         } else {
+                             List<TableLayoutFileEntry> newList = new ArrayList<>();
+                             newList.add(tableLayoutFileEntry);
+                             List<Long> recordList = new ArrayList<>();
+                             Map<String, List<Long>> columnListMap = new HashMap<>();
+                             tableLayoutFileEntriesMap.put(csvDataRecord.get(TABLE_NAME), newList);
+                             recordList.add(csvDataRecord.getRecordNumber() + 1);
+                             columnListMap.put(tableLayoutFileEntry.getColumnName(), recordList);
+                             duplicateColumnsMap.put(csvDataRecord.get(TABLE_NAME), columnListMap);
+                         }
+                     }
+
+                 for (Map.Entry<String, Map<String, List<Long>>> entry : duplicateColumnsMap.entrySet()) {
+                     for (Map.Entry<String, List<Long>> entry1 : entry.getValue().entrySet()) {
+                         if (entry1.getValue().size() > 1) {
+                             errorStrings.add("Column: " + entry1.getKey() + " is repeated for table " + entry.getKey() + " at record numbers " + entry1.getValue() + " in " + layoutFilePath.substring(22));
+                             log.error("Column: " + entry1.getKey() + " is repeated for table " + entry.getKey() + " at record numbers " + entry1.getValue() + " in " + layoutFilePath);
+                         }
+                     }
+                 }
+                 } catch (NullPointerException e) {
+                     throw new UserDataException(e.getLocalizedMessage());
+                 }
+                 log.debug(layoutFilePath + " Layout file Parsed successfully");
+                 return tableLayoutFileEntriesMap;
+        }
+        catch (UserDataException e) {
+            log.error("Exception while parsing the " + layoutFilePath + " file : " + e.getMessage());
+            ApplicationObjects.setTableDescriptor(readTableDescriptorFile());
+            throw new UserDataException(e);
+        }catch (IOException e) {
+            errorStrings.add("Error while parsing the " + layoutFilePath.substring(22) + " file : " + e.getMessage());
+            log.error("Exception while parsing the " + layoutFilePath + " file : " + e.getMessage());
+            ApplicationObjects.setTableDescriptor(readTableDescriptorFile());
+            throw new UserDataException(e);
+        }
+        catch (IllegalArgumentException e) {
+            // List of Mandatory Columns In Header
+            List<String> expectedHeaders = Arrays.asList(TABLE_NAME, COLUMN_NAME, DATA_TYPE, COLUMN_SIZE, COLUMN_SCALE, CHARACTER_MAX_LENGTH,
+                    IS_NULLABLE, SENSITIVE, RULE);
+
+            // Header Validation
+            if (!headernames.containsAll(expectedHeaders)) {
+                log.error(ListUtils.subtract(expectedHeaders, headernames)+ " header(s) missing in file: "+  layoutFilePath.substring(22));
+                errorStrings.add( ListUtils.subtract(expectedHeaders, headernames)+ " header(s) missing in file: "+  layoutFilePath.substring(22));
+            }
+
+            //errorStrings.add("Error while parsing the " + layoutFilePath.substring(22) + " file : " + e.getMessage());
+            log.error("Exception while parsing the " + layoutFilePath + " file : " + e.getMessage());
+            ApplicationObjects.setTableDescriptor(readTableDescriptorFile());
+            throw new UserDataException(e);
+        }
+    }
+
+
+    private TableDescriptor readTableDescriptorFile() throws UserDataException {
+
+        String tableDescriptorFilePath = applicationInputs.getLocaldeIdPlatformRepoPath() + SLASH + applicationInputs.getClientName() + SLASH + applicationInputs.getClientSrc() + SLASH + TABLE_DESCRIPTOR_FILE;
+        log.debug("Table Descriptor file local path is : " + tableDescriptorFilePath);
+
+        try (InputStream inputStream = new FileInputStream(tableDescriptorFilePath)){
+                Yaml yaml = new Yaml(new Constructor(TableDescriptor.class));
+                try {
+                    TableDescriptor tableDescriptor = yaml.load(inputStream);
+                    log.debug("Table Descriptor Is : " + tableDescriptor);
+                    genericObjectValidator.validate(tableDescriptor);
+
+                    if (!errorStrings.isEmpty()) {
+                        throw new UserDataException("Error in reading the input files: " + errorStrings);
+                    }
+
+                    log.debug(tableDescriptorFilePath + " : Table Descriptor file parsed successfully");
+                    applicationInputs.setSourceType(tableDescriptor.getDatabaseProductName());
+                    return tableDescriptor;
+                }catch (YAMLException | ObjectValidatorException e){
+                    log.error("Parameters in " + tableDescriptorFilePath.substring(22) + " can't be empty or null");
+                    errorStrings.add("Parameters in " + tableDescriptorFilePath.substring(22) + " can't be empty or null");
+                    throw new UserDataException("Parameters in " + tableDescriptorFilePath.substring(22) + " can't be empty or null" );
+                }catch (UserDataException e){
+                    throw new UserDataException(e);
+                }
+
+        }catch (IOException e) {
+            if(!errorStrings.isEmpty()){
+                errorStrings.add(e.getLocalizedMessage());
+                log.error("Exception while parsing the input files : " + errorStrings);
+                throw new UserDataException("Exception while parsing the input files : " + errorStrings);
+            }
+            else{
+                log.error("Exception while parsing the file: " + tableDescriptorFilePath + e);
+                throw new UserDataException(e);
+            }
+        }catch (UserDataException e){
+                log.error("Exception while parsing the input files : " + errorStrings);
+                throw new UserDataException("Exception while parsing the input files : " + errorStrings);
+        }
+    }
+
+
+    private ArrayList<LayoutFileEntry> readLayoutFile() throws ConfigFileReaderException, UserDataException, FileNotFoundException {
+
+        ArrayList<LayoutFileEntry> layoutFileEntries = new ArrayList<>();
+
+        String layoutFilePath = applicationInputs.getLocaldeIdPlatformRepoPath() + SLASH + applicationInputs.getClientName() + SLASH + applicationInputs.getClientSrc() + SLASH + FLATFILE_LAYOUT_FILE;
+        log.debug("Layout File Local Path Is : " + layoutFilePath);
+
+        List <String> headernames = new ArrayList();
+
+        try (Reader reader = new FileReader(layoutFilePath);
+             CSVParser parser = new CSVParser(reader, CSVFormat.DEFAULT.withHeader().withAllowDuplicateHeaderNames(false).withAllowMissingColumnNames(false));) {
+
+            headernames = parser.getHeaderNames();
+
+            // List of Columns with Mandatory Values (Non empty values)
+            List<String> mandatoryColumns = Arrays.asList(COLUMN_NAME, DATA_TYPE , COLUMN_SIZE, SENSITIVE);
+
+
+            List<CSVRecord> records = parser.getRecords();
+
+            // Records With Missing Columns Validation
+            Map<Integer, List<String>> recordsWithMissingColumns = validateCSVDataForMandatoryColumns(records,mandatoryColumns);
+            if(!recordsWithMissingColumns.isEmpty()){
+                for (Map.Entry<Integer, List<String>> entry: recordsWithMissingColumns.entrySet()) {
+                    Integer recordNumber = entry.getKey();
+                    List<String> missingColumnsNameList = entry.getValue();
+                    errorStrings.add("Missing values in the mandatory column " + missingColumnsNameList.toString() + " in the file " + layoutFilePath.substring(22) + " at record number " + recordNumber);
+                    log.error("Missing values in the mandatory column " + missingColumnsNameList.toString() + " in the file " + layoutFilePath + " at record number " + recordNumber);
+                }
+            }
+
+            // Records With Missing Rules for Sensitive Columns Validation
+            List<Integer> missingRulesForSensitiveColumnsList = missingRulesForSensitiveColumnsValidation(records);
+            if(!missingRulesForSensitiveColumnsList.isEmpty()){
+                for (Integer recordNumber: missingRulesForSensitiveColumnsList) {
+                    errorStrings.add("Rule was not assigned for the sensitive field [" + records.get(recordNumber-2).get(COLUMN_NAME) + "] in the file " + layoutFilePath.substring(22) + " at record number " + recordNumber);
+                    log.error("Rule was not assigned for the sensitive field [" + records.get(recordNumber-2).get(COLUMN_NAME) + "] in the file " + layoutFilePath + " at record number " + recordNumber);
+                }
+            }
+
+            // Records With No Mapplets for Rules assigned to Sensitive Columns Validation
+            List<Integer> ruleAndMappletValidationList = ruleAndMappletValidation(records);
+            if(!ruleAndMappletValidationList.isEmpty()){
+                for (Integer recordNumber: ruleAndMappletValidationList) {
+                    errorStrings.add("Invalid rule [" + records.get(recordNumber-2).get("Rule") + "] at record number " + recordNumber +" for column [" + records.get(recordNumber-2).get(COLUMN_NAME) + "] in file: " + layoutFilePath.substring(22));
+                    log.error("No mapplet found for rule [" + records.get(recordNumber-2).get("Rule") + "] at record number " + recordNumber + " in file: " + layoutFilePath);
+                }
+            }
+
+            if(!errorStrings.isEmpty()){
+                log.error("Exception while parsing the file: " + layoutFilePath + errorStrings);
+            }
+
+            // Generating List of LayoutFileEntry objects from List of CSVRecords
+            try{
+                for (CSVRecord csvDataRecord: records) {
+                    LayoutFileEntry layoutFileEntry = new LayoutFileEntry((int) csvDataRecord.getRecordNumber(),
+                            csvDataRecord.get(COLUMN_NAME),
+                            csvDataRecord.get(DATA_TYPE).toLowerCase(),
+                            csvDataRecord.get(COLUMN_SIZE),
+                            csvDataRecord.get(SENSITIVE).toLowerCase().charAt(0) == 'y',
+                            csvDataRecord.get(SENSITIVE).toLowerCase().charAt(0) == 'n' ? null : mappletRuleEntryMap.get(csvDataRecord.get(RULE)).getMappletName(),
+                            csvDataRecord.get(SENSITIVE).toLowerCase().charAt(0) == 'n' ? null : mappletRuleEntryMap.get(csvDataRecord.get(RULE)).getMappletInputPort(),
+                            csvDataRecord.get(SENSITIVE).toLowerCase().charAt(0) == 'n' ? null : mappletRuleEntryMap.get(csvDataRecord.get(RULE)).getMappletOutputPort(),
+                            csvDataRecord.get(SENSITIVE).toLowerCase().charAt(0) == 'n' ? null : mappletRuleEntryMap.get(csvDataRecord.get(RULE)).getMappletVersion()
+                    );
+                    layoutFileEntries.add(layoutFileEntry);
+                }
+            }
+            catch (NullPointerException e) {
+                throw new UserDataException(e.getLocalizedMessage());
+            }
+            return layoutFileEntries;
+        }
+        catch (UserDataException e) {
+            log.error("Exception while parsing the " + layoutFilePath + " file : " + e.getMessage());
+            ApplicationObjects.setLayoutDescriptor(readLayoutDescriptorFile());
+            throw new UserDataException(e);
+        }catch (IOException e) {
+            errorStrings.add("Error while parsing the " + layoutFilePath.substring(22) + " file : " + e.getMessage());
+            log.error("Exception while parsing the " + layoutFilePath + " file : " + e.getMessage());
+            ApplicationObjects.setLayoutDescriptor(readLayoutDescriptorFile());
+            throw new UserDataException(e);
+        }
+        catch (IllegalArgumentException e) {
+            // List of Mandatory Columns In Header
+            List<String> expectedHeaders = Arrays.asList(COLUMN_NAME, DATA_TYPE , COLUMN_SIZE, SENSITIVE, RULE);
+
+            // Header Validation
+            if (!headernames.containsAll(expectedHeaders)) {
+                log.error(ListUtils.subtract(expectedHeaders, headernames)+ " header(s) missing in file: "+  layoutFilePath.substring(22));
+                errorStrings.add( ListUtils.subtract(expectedHeaders, headernames)+ " header(s) missing in file: "+  layoutFilePath.substring(22));
+            }
+            log.error("Exception while parsing the " + layoutFilePath + " file : " + e.getMessage());
+            ApplicationObjects.setLayoutDescriptor(readLayoutDescriptorFile());
+            throw new UserDataException(e);
+        }
+    }
+
+
+    private LayoutDescriptor readLayoutDescriptorFile() throws UserDataException, ConfigFileReaderException, FileNotFoundException {
+
+
+        String layoutDescriptorFilePath = applicationInputs.getLocaldeIdPlatformRepoPath() + SLASH + applicationInputs.getClientName() + SLASH + applicationInputs.getClientSrc() + SLASH + FLATFILE_LAYOUT_DESCRIPTOR_FILE;
+        log.debug("Layout Descriptor File Local Path Is : " + layoutDescriptorFilePath);
+
+        boolean errorFlag = true;
+
+        try (InputStream inputStream = new FileInputStream(layoutDescriptorFilePath)){
+            Yaml yaml = new Yaml(new Constructor(LayoutDescriptor.class));
+            try {
+                LayoutDescriptor layoutDescriptor = yaml.load(inputStream);
+                log.debug("Layout Descriptor Is : " + layoutDescriptor);
+
+                if (layoutDescriptor.getIsDelimited() && layoutDescriptor.getDelimiter().isEmpty()) {
+                    errorFlag = false;
+                    errorStrings.add("Delimiter can't be empty if isDelimited is set to true in file: " + layoutDescriptorFilePath.substring(22));
+                }
+                if (layoutDescriptor.getFileIdentifier().isEmpty()) {
+                    errorFlag = false;
+                    errorStrings.add("fileIdentifier can't be empty in file: " + layoutDescriptorFilePath.substring(22));
+                }
+                if (!errorFlag) {
+                    log.error("Exception while parsing the file: " + layoutDescriptorFilePath + errorStrings);
+                }
+
+                if (!errorStrings.isEmpty()) {
+                    throw new UserDataException("Error in reading the input files: " + errorStrings);
+                }
+
+                log.debug("Layout Descriptor Is : " + layoutDescriptor);
+                log.debug("File: " + layoutDescriptorFilePath + "parsed successfully");
+                return layoutDescriptor;
+            }catch (YAMLException e){
+                errorStrings.add("Parameters in " + layoutDescriptorFilePath.substring(22) + " can't be empty or null" );
+                throw new UserDataException("Parameters in " + layoutDescriptorFilePath.substring(22) + " can't be empty or null" );
+            }catch (UserDataException e){
+                throw new UserDataException(e);
+            }
+        }
+        catch (IOException | UserDataException e) {
+            if(!errorStrings.isEmpty()){
+                log.error("Exception while parsing the input files : " + errorStrings);
+                throw new UserDataException("Exception while parsing the input files : " + errorStrings);
+            }
+            else{
+                log.error("Exception while parsing the file: " + layoutDescriptorFilePath + e);
+                throw new UserDataException(e);
+            }
+        }
+    }
+
+
+    private Map<String, MappletRuleEntry> readMappletDescriptorFile() throws ConfigFileReaderException {
+
+        Map<String, MappletRuleEntry>  mappletRuleMap = new HashMap<>();
+
+        log.debug("Loading The Mapplet Descriptor File From : " + applicationInputs.getMappletDescriptorFilePath());
+
+        try (Reader reader = new FileReader(applicationInputs.getMappletDescriptorFilePath());
+             CSVParser parser = new CSVParser(reader, CSVFormat.DEFAULT.withHeader().withAllowDuplicateHeaderNames(false).withAllowMissingColumnNames(false));) {
+
+            // List of Mandatory Columns In Header
+            List<String> expectedHeaders = Arrays.asList(RULE, MAPPLET , INPUT_PORT, OUTPUT_PORT, MAPPLET_VERSION);
+
+            // List of Columns with Mandatory Values (Non empty values)
+            List<String> mandatoryColumns = Arrays.asList(RULE, MAPPLET , INPUT_PORT, OUTPUT_PORT, MAPPLET_VERSION);
+
+
+            // Header Validation
+            if(!parser.getHeaderNames().containsAll(expectedHeaders))
+            {
+                throw new ConfigFileReaderException("Missing Headers in " + applicationInputs.getMappletDescriptorFilePath() + " File : " + ListUtils.subtract(expectedHeaders,parser.getHeaderNames()).toString());
+            }
+
+            List<CSVRecord> records = parser.getRecords();
+
+            // Records With Missing Columns Validation
+            Map<Integer, List<String>> recordsWithMissingColumns = validateCSVDataForMandatoryColumns(records,mandatoryColumns);
+            if(!recordsWithMissingColumns.isEmpty()){
+                List<String> missingColumnsListEx = new ArrayList<>();
+                for (Map.Entry<Integer, List<String>> entry: recordsWithMissingColumns.entrySet()) {
+                    Integer recordNumber = entry.getKey();
+                    List<String> missingColumnsList = entry.getValue();
+                    missingColumnsListEx.add("Missing Values for These Mandatory Columns " + missingColumnsList.toString() + " in " + applicationInputs.getMappletDescriptorFilePath() + " File at Record Number " + recordNumber+".");
+                    log.error("Missing Values for These Mandatory Columns " + missingColumnsList.toString() + " in " + applicationInputs.getMappletDescriptorFilePath() + " File at Record Number " + recordNumber);
+                }
+                String missingColumns = String.join("\\n",missingColumnsListEx);
+                throw new ConfigFileReaderException(missingColumns);
+            }
+
+            // Generating List of LayoutFileEntry objects from List of CSVRecords
+            for (CSVRecord csvDataRecord: records) {
+                MappletRuleEntry mappletRuleEntry = new MappletRuleEntry(csvDataRecord.get(RULE),csvDataRecord.get(MAPPLET),csvDataRecord.get(INPUT_PORT),csvDataRecord.get(OUTPUT_PORT),csvDataRecord.get(MAPPLET_VERSION));
+                mappletRuleMap.put(csvDataRecord.get(RULE).trim(),mappletRuleEntry);
+
+                String uniqueMappletName = csvDataRecord.get(MAPPLET);
+
+                if(uniqueMappletsMap.containsKey(uniqueMappletName)){
+                    Mapplet oldMapplet = uniqueMappletsMap.get(uniqueMappletName);
+                    List<String> listofInputPorts = oldMapplet.getMappletInputPorts();
+                    List<String> listofOutputPorts = oldMapplet.getMappletOutputPorts();
+                    if(!listofInputPorts.contains(csvDataRecord.get(INPUT_PORT))){
+                        listofInputPorts.add(csvDataRecord.get(INPUT_PORT));
+                        oldMapplet.setMappletInputPorts(listofInputPorts);
+                    }
+                    if(!listofOutputPorts.contains(csvDataRecord.get(OUTPUT_PORT))){
+                        listofOutputPorts.add(csvDataRecord.get(OUTPUT_PORT));
+                        oldMapplet.setMappletOutputPorts(listofOutputPorts);
+                    }
+                }
+                else {
+                    ArrayList<String> listofInputPorts = new ArrayList<>();
+                    listofInputPorts.add(csvDataRecord.get(INPUT_PORT));
+                    ArrayList<String> listofOutputPorts = new ArrayList<>();
+                    listofOutputPorts.add(csvDataRecord.get(OUTPUT_PORT));
+                    Mapplet newMapplet = new Mapplet(csvDataRecord.get(MAPPLET),listofInputPorts,listofOutputPorts,csvDataRecord.get(MAPPLET_VERSION));
+                    uniqueMappletsMap.put(uniqueMappletName,newMapplet);
+                }
+            }
+            log.debug("Mapplet Descriptor File Parsed Successfully");
+            return mappletRuleMap;
+        } catch (ConfigFileReaderException e){
+            log.error("Exception while Parsing The " + applicationInputs.getMappletDescriptorFilePath() + " File : " + e.getMessage());
+            throw new ConfigFileReaderException ("Exception while Parsing The " + applicationInputs.getMappletDescriptorFilePath() + " File :\\n" + e.getMessage());
+        }catch (IOException e) {
+            log.error("Exception while Parsing The " + applicationInputs.getMappletDescriptorFilePath() + " File : " + e.getMessage());
+            throw new ConfigFileReaderException("File: " + applicationInputs.getMappletDescriptorFilePath() + " is not found!!!");
+        }
+    }
+
+    private Map<String,Mapplet> generateUniqueMappletsMap() throws ConfigFileReaderException {
+        if(uniqueMappletsMap.isEmpty()){
+            log.debug("Reading Mapplet Descriptor File First As the Unique Mapplet Maps Is Empty");
+            readMappletDescriptorFile();
+            return uniqueMappletsMap;
+        }
+        else
+            return uniqueMappletsMap;
+    }
+
+
+    private Map<String, List<MappletComposition>> readMappletCompositionFile() throws ConfigFileReaderException {
+
+        Map<String, List<MappletComposition>> mappletCompositionMap = new HashMap<>();
+
+        log.debug("Loading The Mapplet Composition File From : " + applicationInputs.getMappletCompositionFilePath());
+
+        try (Reader reader = new FileReader(applicationInputs.getMappletCompositionFilePath());
+             CSVParser parser = new CSVParser(reader, CSVFormat.DEFAULT.withHeader().withAllowDuplicateHeaderNames(false).withAllowMissingColumnNames(false));) {
+
+            // List of Mandatory Columns In Header
+            List<String> expectedHeaders = Arrays.asList(MAPPLET, MAPPLET_SUB_TRANSFORMATION_NAME , MAPPLET_SUB_TRANSFORMATION_TYPE);
+
+            // List of Columns with Mandatory Values (Non empty values)
+            List<String> mandatoryColumns = Arrays.asList(MAPPLET, MAPPLET_SUB_TRANSFORMATION_NAME , MAPPLET_SUB_TRANSFORMATION_TYPE);
+
+
+            // Header Validation
+            if(!parser.getHeaderNames().containsAll(expectedHeaders))
+            {
+                throw new ConfigFileReaderException("Missing Headers in " + applicationInputs.getMappletCompositionFilePath() + " File : " + ListUtils.subtract(expectedHeaders,parser.getHeaderNames()).toString());
+            }
+
+            List<CSVRecord> records = parser.getRecords();
+
+            // Records With Missing Columns Validation
+            Map<Integer, List<String>> recordsWithMissingColumns = validateCSVDataForMandatoryColumns(records,mandatoryColumns);
+            if(!recordsWithMissingColumns.isEmpty()){
+                List<String> missingColumnsValidationList = new ArrayList<>();
+                for (Map.Entry<Integer,List<String>> entry: recordsWithMissingColumns.entrySet()) {
+                    Integer recordNumber = entry.getKey();
+                    List<String> missingColumnsList = entry.getValue();
+                    missingColumnsValidationList.add("Missing Values for These Mandatory Columns " + missingColumnsList.toString() + " in " + applicationInputs.getMappletCompositionFilePath() + " File at Record Number " + recordNumber +".");
+                    log.error("Missing Values for These Mandatory Columns " + missingColumnsList.toString() + " in " + applicationInputs.getMappletCompositionFilePath() + " File at Record Number " + recordNumber);
+                }
+                String missingColumnsValidation = String.join("\\n",missingColumnsValidationList);
+                //throw new ConfigFileReaderException("Missing values for Mandatory Columns in " + applicationInputs.getMappletCompositionFilePath() + " File");
+                throw new ConfigFileReaderException(missingColumnsValidation);
+            }
+
+            String mappletName;
+            String mappletSubTransformationName;
+            String mappletSubTransformationType;
+            List<String> subTransformationValidationList = new ArrayList<>();
+
+            // Generating List of LayoutFileEntry objects from List of CSVRecords
+            for (CSVRecord csvDataRecord: records) {
+                mappletName = csvDataRecord.get(MAPPLET);
+                mappletSubTransformationName = csvDataRecord.get(MAPPLET_SUB_TRANSFORMATION_NAME);
+                mappletSubTransformationType = csvDataRecord.get(MAPPLET_SUB_TRANSFORMATION_TYPE);
+
+                if(!mappletSubTransformationType.equalsIgnoreCase(MAPPLET_EXPRESSION_TRANSFORMATION) &&
+                        !mappletSubTransformationType.equalsIgnoreCase(MAPPLET_CUSTOM_TRANSFORMATION) &&
+                        !mappletSubTransformationType.equalsIgnoreCase(MAPPLET_LOOKUP_PROCEDURE)){
+
+                    subTransformationValidationList.add("MappletSubTransformationType is '" + mappletSubTransformationType + "' at Record number " + csvDataRecord.getRecordNumber() + ".");
+
+                    //throw new ConfigFileReaderException("MappletSubTransformationType is \"" + mappletSubTransformationType + "\" At Record number " + csvDataRecord.getRecordNumber() + ". It should contain either " + MAPPLET_EXPRESSION_TRANSFORMATION + " or " + MAPPLET_CUSTOM_TRANSFORMATION + " or " + MAPPLET_LOOKUP_PROCEDURE);
+                }
+
+                MappletComposition mappletComposition = new MappletComposition(mappletName,mappletSubTransformationName,mappletSubTransformationType);
+                if(mappletCompositionMap.containsKey(mappletName)){
+                    List<MappletComposition> oldMappletCompositionList = mappletCompositionMap.get(mappletName);
+                    oldMappletCompositionList.add(mappletComposition);
+                    mappletCompositionMap.put(mappletName,oldMappletCompositionList);
+                }
+                else{
+                    List<MappletComposition> newMappletCompositionList = new ArrayList<>();
+                    newMappletCompositionList.add(mappletComposition);
+                    mappletCompositionMap.put(mappletName,newMappletCompositionList);
+                }
+            }
+            if(!subTransformationValidationList.isEmpty()){
+                String subTransformationValidation = String.join("\\n",subTransformationValidationList);
+                throw new ConfigFileReaderException(subTransformationValidation + "\\nIt should contain either " + MAPPLET_EXPRESSION_TRANSFORMATION + " or " + MAPPLET_CUSTOM_TRANSFORMATION + " or " + MAPPLET_LOOKUP_PROCEDURE + " in " + applicationInputs.getMappletCompositionFilePath());
+            }
+            else {
+                log.debug("Mapplet Composition File Parsed Successfully");
+                return mappletCompositionMap;
+            }
+        }
+        catch (ConfigFileReaderException e) {
+            log.error("Exception while Parsing The " + applicationInputs.getMappletCompositionFilePath() + " File : " + e.getMessage());
+            throw new ConfigFileReaderException(e.getLocalizedMessage());
+        }catch (IOException e) {
+            log.error("Exception while Parsing The " + applicationInputs.getMappletCompositionFilePath() + " File : " + e.getMessage());
+            throw new ConfigFileReaderException("File: " + applicationInputs.getMappletCompositionFilePath() + " is not found!!!");
+        }
+    }
+
+
+    private Map<Integer, List<String>> validateCSVDataForMandatoryColumns(List<CSVRecord> csvRecords, List<String> expectedColumns){
+        Map<Integer, List<String>> outputMap = new HashMap<>();
+        for (CSVRecord csvDataRecord: csvRecords) {
+            List<String> missingColumns = new ArrayList<>();
+            for (String columnName: expectedColumns) {
+                if(csvDataRecord.get(columnName) == null || csvDataRecord.get(columnName).trim().isEmpty()){
+                    missingColumns.add(columnName);
+                }
+            }
+            if(!missingColumns.isEmpty())
+                outputMap.put(((int) csvDataRecord.getRecordNumber()+1),missingColumns);
+        }
+        return outputMap;
+    }
+
+    private List<Integer> missingRulesForSensitiveColumnsValidation(List<CSVRecord> csvRecords){
+        List<Integer> missingRulesForSensitiveColumnsList = new ArrayList<>();
+        for (CSVRecord csvDataRecord: csvRecords) {
+            if(csvDataRecord.get(SENSITIVE).toLowerCase().charAt(0) == 'y' && csvDataRecord.get(RULE).isEmpty()){
+                missingRulesForSensitiveColumnsList.add((int)csvDataRecord.getRecordNumber()+1);
+            }
+        }
+        return missingRulesForSensitiveColumnsList;
+    }
+
+
+    private List<Integer> ruleAndMappletValidation(List<CSVRecord> csvRecords){
+        List<Integer> ruleAndMappletValidationList = new ArrayList<>();
+        for (CSVRecord csvDataRecord: csvRecords) {
+            if(csvDataRecord.get(SENSITIVE).toLowerCase().charAt(0) == 'y' && !csvDataRecord.get(RULE).isEmpty() && mappletRuleEntryMap.get(csvDataRecord.get(RULE)) == null){
+                ruleAndMappletValidationList.add((int)csvDataRecord.getRecordNumber()+1);
+            }
+        }
+        return ruleAndMappletValidationList;
+    }
+
+
+    private ApplicationConfiguration readConfigFile() throws ConfigFileReaderException {
+        try {
+            log.debug("Loading The Config File From : " + applicationInputs.getConfigFilePath());
+            Map<String, Map<String, String>> outputmap = new HashMap<>();
+            Wini ini = new Wini(new File(applicationInputs.getConfigFilePath()));
+            Collection<Profile.Section> list = ini.values();
+            for (Profile.Section section : list) {
+                Map<String, String> outputMapValue = new HashMap<>();
+                for (String key : section.keySet()) {
+                    outputMapValue.put(key, ini.fetch(section.getName(), key));
+                }
+                outputmap.put(section.getName(), outputMapValue);
+            }
+
+            applicationConfiguration.setOutputXMLName(applicationInputs.getClientName().isEmpty() ? applicationInputs.getClientName() : applicationInputs.getClientName() + UNDERSCORE + applicationInputs.getClientSrc());
+            applicationConfiguration.setEncoding(outputmap.get(applicationInputs.getInformaticaSystemType()).get(APP_CONFIG_ENCODING));
+            applicationConfiguration.setRepositoryVersion(outputmap.get(applicationInputs.getInformaticaSystemType()).get(APP_CONFIG_REPOSITORY_VERSION));
+            applicationConfiguration.setVersion(outputmap.get(applicationInputs.getInformaticaSystemType()).get(APP_CONFIG_VERSION));
+            applicationConfiguration.setCodepage(outputmap.get(applicationInputs.getInformaticaSystemType()).get(APP_CONFIG_CODEPAGE));
+            applicationConfiguration.setPowermartSystem(outputmap.get(applicationInputs.getInformaticaSystemType()).get(APP_CONFIG_POWERMART_SYSTEM));
+            applicationConfiguration.setRepositoryName(outputmap.get(applicationInputs.getInformaticaEnvironment()).get(APP_CONFIG_REPOSITORY_NAME));
+            applicationConfiguration.setIntgSrvc(outputmap.get(applicationInputs.getInformaticaEnvironment()).get(APP_CONFIG_INTEGRATION_SERVICE));
+            applicationConfiguration.setDomainName(outputmap.get(applicationInputs.getInformaticaEnvironment()).get(APP_CONFIG_DOMAIN_NAME));
+            applicationConfiguration.setHostName(outputmap.get(applicationInputs.getInformaticaEnvironment()).get(APP_CONFIG_HOST_NAME));
+            applicationConfiguration.setPortName(outputmap.get(applicationInputs.getInformaticaEnvironment()).get(APP_CONFIG_PORT_NAME));
+            applicationConfiguration.setSecurityDomain(outputmap.get(applicationInputs.getInformaticaEnvironment()).get(APP_CONFIG_SECURITY_DOMAIN));
+            applicationConfiguration.setInfraRepoDbType(outputmap.get(applicationInputs.getInformaticaEnvironment()).get(APP_CONFIG_INFRA_REPO_DB_TYPE));
+
+
+            applicationInputs.setInformaticaOutputFolderName(!applicationInputs.getInformaticaOutputFolderName().isEmpty() ? applicationInputs.getInformaticaOutputFolderName() : applicationConfiguration.getOutputXMLName());
+
+            log.debug("Config File Parsed Successfully");
+            return applicationConfiguration;
+        }
+        catch (Exception e) {
+            log.error("Exception while Parsing The Application Configurations : " + e.getMessage());
+            throw new ConfigFileReaderException("Exception while Parsing The Application Configurations : " + e.getMessage());
+        }
+    }
+
+
+    private Map<String,List<String>> readAllXMLFilesInDirectory(String directoryPath) throws ConfigFileReaderException {
+        try {
+            log.debug("Reading All XML Files from Directory : " + directoryPath);
+            Map<String,List<String>> xmlFilesMap = new HashMap<>();
+            Map<String,String> xmlFiles = listAllXMLFilesInDirectory(directoryPath);
+            List<String> missingFiles = new ArrayList<>();
+
+            if(applicationInputs.getSourceType().equals(FLATFILE_SOURCE)){
+                final List<String> CONFIGXMLSLIST = Arrays.asList(SOURCE_TABLE_ATTRIBUTES_XML_FILE_NAME, TARGET_TABLE_ATTRIBUTES_XML_FILE_NAME, SOURCE_QUALIFIER_TABLE_ATTRIBUTES_XML_FILE_NAME, SESSION_CONFIG_XML_FILE_NAME, SESSION_LOOKUP_EXTENSION_XML_FILE_NAME, SESSION_POST_ATTRIBUTES_XML_FILE_NAME, SESSION_SOURCE_TRANSFORMATION_INSTANCE_XML_FILE_NAME, SESSION_SOURCE_QUALIFIER_TRANSFORMATION_INSTANCE_XML_FILE_NAME, SESSION_TARGET_TRANSFORMATION_INSTANCE_XML_FILE_NAME, SESSION_SOURCE_EXTENSION_XML_FILE_NAME, SESSION_SOURCE_QUALIFIER_EXTENSION_XML_FILE_NAME, SESSION_TARGET_EXTENSION_XML_FILE_NAME, SESSION_TEMPLATE_EXTENSION_XML_FILE_NAME, WORKFLOW_POST_ATTRIBUTES_XML_FILE_NAME, WORKFLOW_VARIABLES_XML_FILE_NAME);
+                for (String XMLFile :CONFIGXMLSLIST ){
+                    if(!xmlFiles.containsKey(XMLFile)){
+                        missingFiles.add(XMLFile);
+                    }
+                }
+            }
+            else if (applicationInputs.getSourceType().equals(MS_SQL_SERVER_SOURCE)){
+                final List<String> CONFIGXMLSLIST = Arrays.asList(SOURCE_QUALIFIER_TABLE_ATTRIBUTES_XML_FILE_NAME, SESSION_CONFIG_XML_FILE_NAME, SESSION_LOOKUP_EXTENSION_XML_FILE_NAME, SESSION_POST_ATTRIBUTES_XML_FILE_NAME, SESSION_SOURCE_TRANSFORMATION_INSTANCE_XML_FILE_NAME, SESSION_SOURCE_QUALIFIER_TRANSFORMATION_INSTANCE_XML_FILE_NAME, SESSION_TARGET_TRANSFORMATION_INSTANCE_XML_FILE_NAME, SESSION_SOURCE_EXTENSION_XML_FILE_NAME, SESSION_SOURCE_QUALIFIER_EXTENSION_XML_FILE_NAME, SESSION_TARGET_EXTENSION_XML_FILE_NAME, SESSION_TEMPLATE_EXTENSION_XML_FILE_NAME, WORKFLOW_POST_ATTRIBUTES_XML_FILE_NAME, WORKFLOW_VARIABLES_XML_FILE_NAME);
+                for (String XMLFile :CONFIGXMLSLIST ){
+                    if(!xmlFiles.containsKey(XMLFile)){
+                        missingFiles.add(XMLFile);
+                    }
+                }
+            }
+
+            if(!missingFiles.isEmpty()){
+                throw new ConfigFileReaderException(missingFiles + " files are missing at " + applicationInputs.getLocaldeIdConfigsRepoPath() + SLASH + APPLICATION_NAME+ SLASH+ CONFIG_XML_FOLDER_NAME + SLASH + applicationInputs.getSourceType());
+            }
+
+            for (Map.Entry<String,String> entry : xmlFiles.entrySet()) {
+                String filename = entry.getKey();
+                String filepath = entry.getValue();
+                xmlFilesMap.put(filename, readXMLFile(filepath));
+            }
+
+            log.debug("All XML Files Read Successfully ");
+            return xmlFilesMap;
+        } catch (Exception e) {
+            log.error("Exception while Reading config XML Files in Directory : " + directoryPath + " : " + e.getMessage());
+            throw new ConfigFileReaderException("Exception while Reading config XML Files in Directory : " + directoryPath + "\\n" + e.getMessage());
+
+        }
+    }
+
+
+
+    private Map<String,String> listAllXMLFilesInDirectory(String directoryPath) throws Exception {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(Paths.get(directoryPath))) {
+            Map<String,String> filesMap = new HashMap<>();
+            for (Path entry : stream) {
+                if (Files.isDirectory(entry)) {
+                    if (!entry.toString().contains(".git")) {
+                        filesMap.putAll(listAllXMLFilesInDirectory(entry.toString()));
+                    }
+                } else {
+                    if (entry.toString().contains(".xml")) {
+                        if (filesMap.containsKey(entry.getFileName().toString())) {
+                            throw new ConfigFileReaderException("File with Name " + entry.getFileName().toString() + " Already Exists At : " + filesMap.get(entry.getFileName().toString()));
+                        } else
+                            filesMap.put(entry.getFileName().toString(), entry.toString());
+                    }
+                }
+            }
+            return filesMap;
+        }
+    }
+
+    private List<String> readXMLFile(String xmlfilePath) throws ConfigFileReaderException {
+        try {
+            Path xmlfilePathObj = Paths.get(xmlfilePath);
+            List<String> allLines = Files.readAllLines(xmlfilePathObj);
+            if (allLines.isEmpty()){
+                throw new ConfigFileReaderException(applicationInputs.getLocaldeIdConfigsRepoPath() + SLASH + APPLICATION_NAME+ SLASH+ CONFIG_XML_FOLDER_NAME + SLASH + applicationInputs.getSourceType() + SLASH + xmlfilePath + " File is Empty");
+            }
+            log.debug("File " + xmlfilePath + " Read Successfully");
+            return allLines;
+        } catch (IOException e) {
+            log.error("Exception while Parsing The " + applicationInputs.getLocaldeIdConfigsRepoPath() + SLASH + APPLICATION_NAME+ SLASH+ CONFIG_XML_FOLDER_NAME + SLASH + applicationInputs.getSourceType() + SLASH + xmlfilePath + " File : " + e.getMessage());
+            throw new ConfigFileReaderException("Exception while Parsing The " +applicationInputs.getLocaldeIdConfigsRepoPath() + SLASH + APPLICATION_NAME+ SLASH+ CONFIG_XML_FOLDER_NAME + SLASH + applicationInputs.getSourceType() + SLASH + xmlfilePath + " File : " + e.getMessage());
+        }
+    }
+
+}
